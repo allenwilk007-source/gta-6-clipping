@@ -123,6 +123,27 @@ function renderChannel(channel, videos) {
   }
 }
 
+/**
+ * The Connect button, on the page about the account it connects. Shown as
+ * soon as there are keys: before that there is nothing to sign in to, and
+ * the setup note above explains what is missing.
+ */
+function renderConnect(account, up) {
+  const row = $('connect');
+  if (!row) return;
+  const link = $('connect-link');
+  const note = $('connect-note');
+  const keys = Boolean(account.keys ?? up.keys);
+  row.hidden = !keys || !up.built;
+  link.href = `/auth/${PLATFORM}`;
+  const connected = Boolean(account.connected ?? up.connected);
+  link.textContent = connected ? 'Reconnect' : `Connect ${LABEL}`;
+  link.classList.toggle('is-connected', connected);
+  note.textContent = connected
+    ? 'Signed in. Reconnect if the sign-in has lapsed or you want a different account.'
+    : `Sends you to ${LABEL} to allow this tool, then back here.`;
+}
+
 function renderCards(up, videos, stats) {
   const cards = $('cards');
   cards.textContent = '';
@@ -314,6 +335,7 @@ async function load({ force = false } = {}) {
       problem.hidden = true;
     }
 
+    renderConnect(yt, up);
     renderChannel(yt.channel, lastVideos);
     renderCards(up, lastVideos, yt);
     renderVideos(lastVideos);

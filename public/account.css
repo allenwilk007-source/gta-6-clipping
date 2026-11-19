@@ -30,6 +30,41 @@
   border-bottom: 2px solid var(--accent);
 }
 
+/* ---------- connect, on the page about the account ---------- */
+
+.yt-connect-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.yt-connect {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yt-connect:hover {
+  filter: brightness(1.1);
+}
+
+.yt-connect.is-connected {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.yt-connect-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 /* ---------- what an unconnected account needs ---------- */
 
 .yt-setup {
