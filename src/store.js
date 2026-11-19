@@ -525,6 +525,11 @@ export class Store {
     );
   }
 
+  /** Shorts being uploaded right now, on any platform: never deleted mid-upload. */
+  uploadingFiles() {
+    return this.db.prepare("select distinct file from uploads where status = 'uploading'").all().map((r) => r.file);
+  }
+
   /** Rows a crash left mid-upload: not retried, shown for a person to check. */
   markInterruptedUploads({ at = new Date() } = {}) {
     const result = this.db

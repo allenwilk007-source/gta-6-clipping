@@ -438,6 +438,15 @@ process (exit 3221225794), a dropped connection, a stray yt-dlp error.
 Run over the first 38 shorts, the checks found exactly two bad ones: the
 28-second one, and a webcam frozen for all 30 seconds.
 
+### Only what you download is kept
+
+The pipeline makes dozens of shorts an hour, about 15 MB each. Any short you
+have not clicked **Download** on is deleted 6 hours after it was made,
+along with its post copy; each card says how long it has left. Clicking
+Download keeps it for good (`data/kept.json` lists them). A short being
+uploaded is never deleted, and `clips/rejected` is left alone.
+`SHORTS_KEEP_HOURS` changes the window; `0` keeps everything.
+
 ### One copy at a time
 
 `npm start` and `npm run auto` each take `data/app.lock`, and a second copy
@@ -720,6 +729,7 @@ src/clipjobs.js in-memory clip queue, two at a time
 src/shortform.js caption, 9:16 render with text, post copy
 src/autoclip.js which moments to cut, and cutting them
 src/automation.js channel automation: the panel's channels, switch, shorts
+src/retention.js deletes shorts nobody downloaded, after SHORTS_KEEP_HOURS
 src/uploader.js auto upload: which shorts, when, and every way one can fail
 src/youtube.js  YouTube sign-in and resumable upload, through the owner's app
 src/recopy.js   npm run recopy: rewrite the post copy of shorts already made

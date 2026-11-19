@@ -167,7 +167,15 @@ async function sendShort(req, res, name, download) {
     'accept-ranges': 'bytes',
     'cache-control': 'no-cache',
   };
-  if (download) headers['content-disposition'] = `attachment; filename="${name}"`;
+  if (download) {
+    headers['content-disposition'] = `attachment; filename="${name}"`;
+    // Downloaded means wanted: this short is never deleted by retention.
+    try {
+      automation.retention?.keep(name);
+    } catch (err) {
+      feed.log(`retention: could not record the download of ${name}: ${err.message}`);
+    }
+  }
 
   const range = parseRange(req.headers.range, size);
   if (range?.invalid) {

@@ -75,6 +75,10 @@ text is summarised into counts and then discarded; raw chat text is not stored.
 
 Everything lives in the project folder on the operator's computer.
 
+- **Shorts:** a short the operator has not downloaded is deleted from
+  `clips/ready` 6 hours after it was made (`SHORTS_KEEP_HOURS`). Downloaded
+  shorts stay until the operator deletes them.
+
 - **To delete the collected data:** delete the `data/` and `clips/` folders.
 - **To revoke access:** disconnect the app in the platform's own settings
   (TikTok: Settings → Security and permissions → Manage app permissions;

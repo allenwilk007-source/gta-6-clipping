@@ -18,6 +18,7 @@ import { basename, dirname, join, relative } from 'node:path';
 
 import { AutoClipper, autoclipConfig, momentLogin } from './autoclip.js';
 import { RecorderManager } from './live.js';
+import { Retention } from './retention.js';
 import { clipBasename } from './clip.js';
 import { config } from './config.js';
 import { listTracks, shortformConfig } from './shortform.js';
@@ -143,7 +144,7 @@ export function parseRange(header, size) {
 }
 
 /** Newest shorts for the panel, with their post copy if the file is still there. */
-export async function listShorts(store, dir, { limit = 24 } = {}) {
+export async function listShorts(store, dir, { limit = 24, retention = null } = {}) {
   if (!store) return [];
   return Promise.all(
     store.listAutoclips({ limit }).map(async (row) => {
@@ -189,6 +190,9 @@ export async function listShorts(store, dir, { limit = 24 } = {}) {
         file: exists ? file : null,
         postText,
         post,
+        // Downloaded shorts stay; the rest are deleted at expiresAt.
+        kept: Boolean(exists && retention?.isKept(file)),
+        expiresAt: exists && retention ? retention.expiresAt(file, Date.parse(row.finishedAt || row.createdAt)) : null,
       };
     }),
   );
@@ -271,6 +275,7 @@ export class Automation {
     path = join(config.root, 'data', 'automation.json'),
     clipper,
     recorders,
+    retention,
     env = process.env,
   } = {}) {
     this.feed = feed;
@@ -295,6 +300,10 @@ export class Automation {
         snapshotLive: (moment) => this.snapshotLive(moment),
       });
     this.applyToClipper();
+    // Un-downloaded shorts are deleted after SHORTS_KEEP_HOURS (retention.js).
+    this.retention =
+      retention ||
+      new Retention({ dir: this.dir, busy: () => feed.store?.uploadingFiles?.() || [], log });
     this.timer = null;
     this.seen = null;
     this.health = { level: 'ok', message: null };
@@ -383,6 +392,7 @@ export class Automation {
 
   start() {
     this.recorders?.start();
+    this.retention?.start();
     // The feed replaces its moments array on every poll, so a new array is a
     // new poll. Watching for that keeps the feed unaware of automation.
     this.timer = setInterval(() => {
@@ -402,6 +412,7 @@ export class Automation {
     clearInterval(this.timer);
     this.timer = null;
     this.recorders?.stop();
+    this.retention?.stop();
   }
 
   update(change = {}) {
@@ -448,7 +459,8 @@ export class Automation {
       health: this.health,
       recordings: this.recorders ? this.recorders.status() : [],
       lookups: this.feed.lookups || null,
-      shorts: await listShorts(this.feed.store, this.dir, { limit: 48 }),
+      shorts: await listShorts(this.feed.store, this.dir, { limit: 48, retention: this.retention }),
+      keepHours: this.retention?.keepHours ?? 0,
     };
   }
 }

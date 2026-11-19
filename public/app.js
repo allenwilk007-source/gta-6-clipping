@@ -639,6 +639,24 @@ function paintMeter(node, item) {
   node.classList.toggle('is-strong', item.score >= 65);
 }
 
+function hoursLeft(at) {
+  const minutes = Math.max(0, Math.round((at - Date.now()) / 60_000));
+  return minutes >= 60 ? `${Math.round(minutes / 60)}h` : `${minutes}m`;
+}
+
+// Who, when, and whether it stays: repainted on every refresh so the
+// countdown to deletion does not go stale on a reused card.
+function paintMeta(node, item) {
+  const when = new Date(item.finishedAt || item.createdAt);
+  const life = item.kept
+    ? ' · kept'
+    : item.expiresAt
+      ? ` · deleted in ${hoursLeft(item.expiresAt)} unless downloaded`
+      : '';
+  node.querySelector('.short-meta').textContent =
+    `@${item.broadcaster} · ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${life}`;
+}
+
 function buildShort(item) {
   const node = auto.template.content.firstElementChild.cloneNode(true);
   const frame = node.querySelector('.short-frame');
@@ -647,9 +665,7 @@ function buildShort(item) {
 
   node.querySelector('.short-caption').textContent = item.caption || '(no caption)';
   paintMeter(node, item);
-  const when = new Date(item.finishedAt || item.createdAt);
-  node.querySelector('.short-meta').textContent =
-    `@${item.broadcaster} · ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  paintMeta(node, item);
 
   if (item.file) {
     const src = `/shorts/${encodeURIComponent(item.file)}`;
@@ -660,6 +676,8 @@ function buildShort(item) {
     video.playsInline = true;
     frame.append(video);
     download.href = `${src}?download=1`;
+    // Kept from now on: say so without waiting for the next refresh.
+    download.addEventListener('click', () => paintMeta(node, { ...item, kept: true }));
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'short-placeholder';
@@ -710,7 +728,9 @@ function buildShort(item) {
 function renderShorts(items) {
   const wanted = items.map((item) => {
     const key = shortKey(item);
-    return { key, node: shortCards.get(key) || buildShort(item) };
+    const reused = shortCards.get(key);
+    if (reused) paintMeta(reused, item);
+    return { key, node: reused || buildShort(item) };
   });
   shortCards.clear();
   for (const { key, node } of wanted) shortCards.set(key, node);
