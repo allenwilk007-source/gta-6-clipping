@@ -104,11 +104,13 @@ function games() {
 export const GAME_TAGS = {
   'grand theft auto vi': { tags: ['#gta6', '#gtavi'], youtube: '#GTA6', short: 'GTA 6' },
   fortnite: { tags: ['#fortnite', '#fortniteclips'], youtube: '#Fortnite', short: 'Fortnite' },
+  'escape from tarkov': { tags: ['#tarkov', '#escapefromtarkov'], youtube: '#Tarkov', short: 'Tarkov' },
 };
 
 export const GAME_HASHTAGS = {
   'grand theft auto vi': '#gta6 #gtavi #gaming #twitch',
   fortnite: '#fortnite #fortniteclips #gaming #twitch',
+  'escape from tarkov': '#tarkov #escapefromtarkov #gaming #twitch',
 };
 
 export const config = {

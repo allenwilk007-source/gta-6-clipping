@@ -48,6 +48,21 @@ const num = (value, fallback) => (Number.isFinite(Number(value)) && String(value
 
 export const PLATFORMS = ['youtube', 'tiktok', 'instagram'];
 
+/**
+ * Which of the watched games a channel is for, from a comma-separated list.
+ * Unset means all of them, which is what a single channel posting everything
+ * wants. Set it when a channel is about one game: a Tarkov channel fed GTA
+ * clips is worse than one posting nothing, because the wrong clip is what the
+ * audience judges the channel by.
+ */
+const gamesFor = (value) => {
+  const names = String(value || '')
+    .split(',')
+    .map((g) => g.trim())
+    .filter(Boolean);
+  return names.length ? names : null;
+};
+
 export const uploadConfig = (env = process.env) => ({
   youtube: {
     // Each upload costs 1,600 of the default 10,000 daily units; 5 leaves
@@ -56,6 +71,7 @@ export const uploadConfig = (env = process.env) => ({
     // Even spacing: 5 a day, three hours apart.
     spacingMinutes: num(env.YOUTUBE_SPACING_MINUTES, 180),
     privacy: ['public', 'unlisted', 'private'].includes(env.YOUTUBE_PRIVACY) ? env.YOUTUBE_PRIVACY : 'public',
+    games: gamesFor(env.YOUTUBE_GAMES),
   },
   tiktok: {
     // TikTok's own words: at most 5 pending shares within any 24-hour period.
@@ -63,6 +79,7 @@ export const uploadConfig = (env = process.env) => ({
     perDay: num(env.TIKTOK_PER_DAY, tiktok.PENDING_CAP),
     // 24 hours over 5 is a little under five hours.
     spacingMinutes: num(env.TIKTOK_SPACING_MINUTES, 280),
+    games: gamesFor(env.TIKTOK_GAMES),
   },
   instagram: {
     // Instagram's documented cap is 50 published posts in a moving 24 hours;
@@ -73,6 +90,7 @@ export const uploadConfig = (env = process.env) => ({
     spacingMinutes: num(env.INSTAGRAM_SPACING_MINUTES, 32),
     // A Reel also appearing on the profile grid. Off is the quieter choice.
     shareToFeed: env.INSTAGRAM_SHARE_TO_FEED !== 'false',
+    games: gamesFor(env.INSTAGRAM_GAMES),
   },
 });
 
@@ -367,7 +385,8 @@ export class Uploader {
   async queueFor(key) {
     const hit = this.queueCache.get(key);
     if (hit && Date.now() - hit.at < QUEUE_TTL_MS) return hit.rows;
-    const rows = await candidates({ store: this.store, dir: this.dir, platform: key });
+    // `games: undefined` leaves candidates() on its default, every watched game.
+    const rows = await candidates({ store: this.store, dir: this.dir, platform: key, games: this.cfg[key]?.games || undefined });
     this.queueCache.set(key, { at: Date.now(), rows });
     return rows;
   }

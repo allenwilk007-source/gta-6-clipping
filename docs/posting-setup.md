@@ -154,6 +154,36 @@ linked to the Page, or not enough rights on the Page.
 
 ---
 
+## One channel per game
+
+The feed watches every category in `GAMES` at once, and by default a connected
+channel is offered all of them. A channel that is about one game should say so:
+
+```
+GAMES=Grand Theft Auto VI,Fortnite,Escape from Tarkov
+YOUTUBE_GAMES=Escape from Tarkov
+```
+
+That sends only Tarkov shorts to the connected YouTube channel, while TikTok
+and Instagram — with no list of their own — still see all three.
+
+Two things this does **not** do, both worth knowing before you rely on it:
+
+- **It narrows, it cannot widen.** A game missing from `GAMES` is never
+  clipped, so it reaches no queue whatever `YOUTUBE_GAMES` says. Add it to
+  `GAMES` first.
+- **It is not per-channel routing.** The sign-in is one token in
+  `data/youtube-token.json`, so there is exactly one YouTube channel at a time.
+  To post GTA to one channel and Tarkov to another you would need two copies of
+  this tool with their own `data/` folders — not one copy with two channels.
+
+Spell the game exactly as Twitch spells it, including the lowercase "from" in
+`Escape from Tarkov`; the match is case-insensitive but the name must otherwise
+be the same, because it is compared against the game the short recorded about
+itself.
+
+---
+
 ## When the keys are in
 
 YouTube is built; Instagram and TikTok are not yet.
