@@ -17,6 +17,88 @@
   color: var(--text);
 }
 
+/* A class that sets `display` outranks the browser's own [hidden] rule, so
+   hiding a section in JS silently did nothing. Say it once, for the page. */
+[hidden] {
+  display: none !important;
+}
+
+/* The page you are on, so four links do not read as four choices. */
+.back-link.is-here {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent);
+}
+
+/* ---------- connect, on the page about the account ---------- */
+
+.yt-connect-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.yt-connect {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yt-connect:hover {
+  filter: brightness(1.1);
+}
+
+.yt-connect.is-connected {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.yt-connect-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- what an unconnected account needs ---------- */
+
+.yt-setup {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.yt-setup h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.yt-setup p {
+  margin: 0 0 8px;
+  max-width: 76ch;
+}
+
+.yt-setup p:last-child {
+  margin-bottom: 0;
+}
+
+.yt-setup code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  font-size: 12px;
+}
+
+.yt-setup-note {
+  color: var(--muted);
+}
+
 /* ---------- the channel ---------- */
 
 .yt-channel {

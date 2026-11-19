@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TikTok</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/account.css" />
+  </head>
+  <body data-platform="tiktok">
+    <header class="bar">
+      <div class="bar-left">
+        <h1>TikTok</h1>
+        <span class="game" id="updated">loading…</span>
+      </div>
+      <div class="bar-right">
+        <a class="back-link" href="/">← Clipping</a>
+        <a class="back-link" href="/youtube.html">YouTube</a>
+        <a class="back-link is-here" href="/tiktok.html">TikTok</a>
+        <a class="back-link" href="/instagram.html">Instagram</a>
+        <button type="button" id="refresh" class="refresh-btn">Refresh</button>
+      </div>
+    </header>
+
+    <main class="yt-main">
+      <p class="yt-problem" id="problem" hidden></p>
+
+      <p class="yt-connect-row" id="connect" hidden>
+        <a class="yt-connect" id="connect-link" href="/auth/tiktok">Connect</a>
+        <span class="yt-connect-note" id="connect-note"></span>
+      </p>
+
+      <section class="yt-setup" id="setup" hidden>
+        <h2>What this needs</h2>
+        <p>
+          A TikTok developer app at <b>developers.tiktok.com</b> with
+          <b>Login Kit</b> and the <b>Content Posting API</b>, asking for the
+          scopes <code>user.info.basic</code>, <code>user.info.stats</code>,
+          <code>video.list</code> and <code>video.upload</code>. Put the client
+          key and secret in <code>.env</code> as <code>TIKTOK_CLIENT_KEY</code>
+          and <code>TIKTOK_CLIENT_SECRET</code>.
+        </p>
+        <p class="yt-setup-note">
+          An upload arrives as a <b>draft in your TikTok inbox</b> for you to
+          caption and post — the inbox endpoint has no caption field, so the
+          post copy is written to the log for you to paste. Posting straight to
+          the profile needs <code>video.publish</code> and TikTok's audit, and
+          until that passes TikTok restricts everything an unaudited client
+          posts to private viewing. This tool does not try to get around it.
+          TikTok also allows at most <b>5 pending inbox shares in a rolling
+          24 hours</b>.
+        </p>
+      </section>
+
+      <section class="yt-channel" id="channel" hidden>
+        <img class="yt-avatar" id="avatar" alt="" width="72" height="72" />
+        <div class="yt-channel-text">
+          <a class="yt-channel-name" id="channel-name" target="_blank" rel="noopener"></a>
+          <div class="yt-channel-sub" id="channel-sub"></div>
+        </div>
+        <dl class="yt-channel-nums" id="channel-nums"></dl>
+      </section>
+
+      <section class="yt-cards" id="cards"></section>
+
+      <section class="yt-videos">
+        <div class="yt-videos-head">
+          <h2>Posts <span class="yt-count" id="video-count"></span></h2>
+          <div class="yt-sorts" id="sorts">
+            <button type="button" data-sort="published" class="is-on">Newest</button>
+            <button type="button" data-sort="views">Views</button>
+            <button type="button" data-sort="likes">Likes</button>
+            <button type="button" data-sort="engagement">Engagement</button>
+          </div>
+        </div>
+        <ol class="yt-list" id="videos"></ol>
+        <p class="yt-empty" id="videos-empty" hidden>Nothing on the account yet.</p>
+      </section>
+
+      <section class="yt-next">
+        <h2>Next up <span class="yt-count" id="queued-count"></span></h2>
+        <ol class="yt-queue" id="queue"></ol>
+        <p class="yt-empty" id="queue-empty" hidden>Nothing queued.</p>
+      </section>
+    </main>
+
+    <template id="video-row">
+      <li class="ytv">
+        <a class="ytv-thumb" target="_blank" rel="noopener"><img alt="" loading="lazy" /></a>
+        <div class="ytv-body">
+          <a class="ytv-title" target="_blank" rel="noopener"></a>
+          <div class="ytv-meta"></div>
+          <div class="ytv-bar"><span></span></div>
+        </div>
+        <div class="ytv-nums"></div>
+      </li>
+    </template>
+
+    <script src="/account.js" type="module"></script>
+  </body>
+</html>
