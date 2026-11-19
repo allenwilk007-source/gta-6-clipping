@@ -274,6 +274,32 @@ export function pickQuote(words, { reactionAt = 25, mild = true } = {}) {
 // A clip "title" that is really the stream title Twitch filled in by default.
 const STREAM_TITLE = /[|[\]]|(^|\s)!\w|\bday\s*\d+\b|24\/7|\bsubathon\b|\bstream\b|\bdrops\b/i;
 
+// What a clipping bot calls a clip when it has nothing to say: "AutoClipper
+// Highlight", "ohnePixel clip 4", "Best Moments". A title made of nothing but
+// these words, the streamer's name and digits says nothing about the moment,
+// so it must not outrank the wording this tool writes itself. Kept narrow on
+// purpose: every word here is one a person would rarely use alone, and a
+// single ordinary word in the title ("Lucia", "ladder", "cops") saves it.
+const BOT_WORDS = new Set(
+  `autoclipper autoclip autoclips autoclipped clipper clippers clip clips clipped clipping
+   highlight highlights moment moments best funny epic insane crazy wild
+   stream streams streamer live vod vods twitch kick youtube short shorts
+   gameplay playing play new untitled unnamed part video videos clipit
+   daily random today yesterday here this that it by of the a an and on in to`.split(/\s+/),
+);
+
+/**
+ * True when a clip title is boilerplate rather than something written about
+ * this moment. Digits and the streamer's own name count as filler: "ohnePixel
+ * Highlight 12" is the bot's numbering, not a description.
+ */
+export function isBoilerplateTitle(text, broadcaster = '') {
+  const name = String(broadcaster).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const words = String(text).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (!words.length) return true;
+  return words.every((word) => BOT_WORDS.has(word) || /^\d+$/.test(word) || (name && word === name));
+}
+
 const sameTitle = (text) => String(text).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
 /**
@@ -299,7 +325,7 @@ export function titleFor(
   const raw = String(moment?.title || '');
 
   const candidates = [];
-  if (moment?.source !== 'chat' && !STREAM_TITLE.test(raw)) {
+  if (moment?.source !== 'chat' && !STREAM_TITLE.test(raw) && !isBoilerplateTitle(raw, moment?.broadcaster)) {
     const clipTitle = cleanCaption(raw);
     if (clipTitle) candidates.push(withEmoji(censor(clipTitle, { mild })));
   }
@@ -396,6 +422,7 @@ function fill(template, name, game) {
 export function writtenTitle(moment, { mild = true } = {}) {
   const raw = String(moment?.title || '');
   if (moment?.source === 'chat' || !raw || STREAM_TITLE.test(raw)) return null;
+  if (isBoilerplateTitle(raw, moment?.broadcaster)) return null;
   const written = cleanCaption(raw)
     .replace(new RegExp(EMOJI.source, 'gu'), '')
     .replace(/\s+/g, ' ')
