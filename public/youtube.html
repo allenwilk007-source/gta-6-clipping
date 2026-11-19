@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/youtube.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="bar-left">
+        <h1>YouTube</h1>
+        <span class="game" id="updated">loading…</span>
+      </div>
+      <div class="bar-right">
+        <a class="back-link" href="/">← Feed</a>
+        <a class="back-link" href="/queue.html">Queue</a>
+        <a class="back-link" href="/stats.html">Stats</a>
+        <button type="button" id="refresh" class="refresh-btn">Refresh</button>
+      </div>
+    </header>
+
+    <main class="yt-main">
+      <p class="yt-problem" id="problem" hidden></p>
+
+      <!-- Who this is -->
+      <section class="yt-channel" id="channel" hidden>
+        <img class="yt-avatar" id="avatar" alt="" width="72" height="72" />
+        <div class="yt-channel-text">
+          <a class="yt-channel-name" id="channel-name" target="_blank" rel="noopener"></a>
+          <div class="yt-channel-sub" id="channel-sub"></div>
+        </div>
+        <dl class="yt-channel-nums" id="channel-nums"></dl>
+      </section>
+
+      <!-- What the uploader is doing -->
+      <section class="yt-cards" id="cards"></section>
+
+      <!-- Every video on the channel -->
+      <section class="yt-videos">
+        <div class="yt-videos-head">
+          <h2>Videos <span class="yt-count" id="video-count"></span></h2>
+          <div class="yt-sorts" id="sorts">
+            <button type="button" data-sort="published" class="is-on">Newest</button>
+            <button type="button" data-sort="views">Views</button>
+            <button type="button" data-sort="likes">Likes</button>
+            <button type="button" data-sort="engagement">Engagement</button>
+          </div>
+        </div>
+        <ol class="yt-list" id="videos"></ol>
+        <p class="yt-empty" id="videos-empty" hidden>No videos on the channel yet.</p>
+      </section>
+
+      <!-- What is about to go up -->
+      <section class="yt-next">
+        <h2>Next up <span class="yt-count" id="queued-count"></span></h2>
+        <ol class="yt-queue" id="queue"></ol>
+        <p class="yt-empty" id="queue-empty" hidden>Nothing queued.</p>
+      </section>
+    </main>
+
+    <template id="video-row">
+      <li class="ytv">
+        <a class="ytv-thumb" target="_blank" rel="noopener"><img alt="" loading="lazy" /></a>
+        <div class="ytv-body">
+          <a class="ytv-title" target="_blank" rel="noopener"></a>
+          <div class="ytv-meta"></div>
+          <div class="ytv-bar"><span></span></div>
+        </div>
+        <div class="ytv-nums"></div>
+      </li>
+    </template>
+
+    <script src="/youtube.js" type="module"></script>
+  </body>
+</html>
