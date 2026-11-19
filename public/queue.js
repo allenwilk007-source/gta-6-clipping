@@ -118,7 +118,11 @@ function render(view) {
     });
   }
   const total = PLATFORMS.reduce((sum, name) => sum + (view[name]?.upcoming?.length || 0), 0);
-  els.updated.textContent = total ? `${total} scheduled · updated ${time(new Date().toISOString())}` : 'nothing scheduled';
+  // This runs on the main page too, which has its own header and so has no
+  // #updated or #refresh of its own. Say it where there is somewhere to say it.
+  if (els.updated) {
+    els.updated.textContent = total ? `${total} scheduled · updated ${time(new Date().toISOString())}` : 'nothing scheduled';
+  }
 }
 
 async function poll() {
@@ -127,7 +131,7 @@ async function poll() {
     if (!res.ok) throw new Error(`uploads returned ${res.status}`);
     render(await res.json());
   } catch (err) {
-    els.updated.textContent = 'offline';
+    if (els.updated) els.updated.textContent = 'offline';
     for (const name of PLATFORMS) {
       els[name].body.innerHTML = `<p class="pending-note is-held">Cannot reach the server: ${escape(err.message)}.
         Is <code>npm start</code> still running?</p>`;
@@ -135,12 +139,15 @@ async function poll() {
   }
 }
 
-els.refresh.addEventListener('click', () => {
+els.refresh?.addEventListener('click', () => {
   els.refresh.disabled = true;
   poll().finally(() => {
     els.refresh.disabled = false;
   });
 });
+
+// On the main page nobody presses Refresh, so keep it current on its own.
+if (!els.refresh) setInterval(poll, 30_000);
 
 poll();
 setInterval(poll, POLL_MS);

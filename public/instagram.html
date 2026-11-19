@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instagram</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/account.css" />
+  </head>
+  <body data-platform="instagram">
+    <header class="bar">
+      <div class="bar-left">
+        <h1>Instagram</h1>
+        <span class="game" id="updated">loading…</span>
+      </div>
+      <div class="bar-right">
+        <a class="back-link" href="/">← Clipping</a>
+        <a class="back-link" href="/youtube.html">YouTube</a>
+        <a class="back-link" href="/tiktok.html">TikTok</a>
+        <a class="back-link is-here" href="/instagram.html">Instagram</a>
+        <button type="button" id="refresh" class="refresh-btn">Refresh</button>
+      </div>
+    </header>
+
+    <main class="yt-main">
+      <p class="yt-problem" id="problem" hidden></p>
+
+      <section class="yt-setup" id="setup" hidden>
+        <h2>What this needs</h2>
+        <p>
+          A <b>Professional</b> (Business or Creator) Instagram account
+          <b>linked to a Facebook Page</b> you administer, plus a Meta app using
+          <b>Instagram API with Facebook Login</b> and the permissions
+          <code>instagram_basic</code>, <code>instagram_content_publish</code>,
+          <code>pages_show_list</code> and <code>pages_read_engagement</code>.
+          Put the app id and secret in <code>.env</code> as
+          <code>INSTAGRAM_APP_ID</code> and <code>INSTAGRAM_APP_SECRET</code>.
+        </p>
+        <p class="yt-setup-note">
+          The Facebook Page is not a formality. The other flavour of the API,
+          Instagram Login, publishes only from a public <code>video_url</code>
+          that Meta's servers fetch — and nothing here is on the public
+          internet. Only the Facebook Login flavour accepts the bytes from this
+          machine. Instagram publishes for real, with no draft step, and allows
+          50 posts in a moving 24 hours.
+        </p>
+      </section>
+
+      <section class="yt-channel" id="channel" hidden>
+        <img class="yt-avatar" id="avatar" alt="" width="72" height="72" />
+        <div class="yt-channel-text">
+          <a class="yt-channel-name" id="channel-name" target="_blank" rel="noopener"></a>
+          <div class="yt-channel-sub" id="channel-sub"></div>
+        </div>
+        <dl class="yt-channel-nums" id="channel-nums"></dl>
+      </section>
+
+      <section class="yt-cards" id="cards"></section>
+
+      <section class="yt-videos">
+        <div class="yt-videos-head">
+          <h2>Reels <span class="yt-count" id="video-count"></span></h2>
+          <div class="yt-sorts" id="sorts">
+            <button type="button" data-sort="published" class="is-on">Newest</button>
+            <button type="button" data-sort="views">Views</button>
+            <button type="button" data-sort="likes">Likes</button>
+            <button type="button" data-sort="engagement">Engagement</button>
+          </div>
+        </div>
+        <ol class="yt-list" id="videos"></ol>
+        <p class="yt-empty" id="videos-empty" hidden>Nothing on the account yet.</p>
+      </section>
+
+      <section class="yt-next">
+        <h2>Next up <span class="yt-count" id="queued-count"></span></h2>
+        <ol class="yt-queue" id="queue"></ol>
+        <p class="yt-empty" id="queue-empty" hidden>Nothing queued.</p>
+      </section>
+    </main>
+
+    <template id="video-row">
+      <li class="ytv">
+        <a class="ytv-thumb" target="_blank" rel="noopener"><img alt="" loading="lazy" /></a>
+        <div class="ytv-body">
+          <a class="ytv-title" target="_blank" rel="noopener"></a>
+          <div class="ytv-meta"></div>
+          <div class="ytv-bar"><span></span></div>
+        </div>
+        <div class="ytv-nums"></div>
+      </li>
+    </template>
+
+    <script src="/account.js" type="module"></script>
+  </body>
+</html>

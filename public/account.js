@@ -1,11 +1,25 @@
-// The YouTube page. Two reads: /api/stats for the channel and its videos,
-// /api/uploads for what this tool is doing with them.
+// One account page, used by youtube.html, tiktok.html and instagram.html.
+// Which one it is comes from <body data-platform>, so the three pages differ
+// only in that word and the setup note they carry.
 //
-// /api/stats is behind a refresh floor on the server, because every call
-// spends the uploader's own daily quota. So this polls slowly and says when
-// it is showing a cached answer rather than pretending the number is live.
+// Two reads: /api/stats for the account and its posts, /api/uploads for what
+// this tool is doing with them. /api/stats is behind a refresh floor on the
+// server, because every call spends the uploader's own daily quota. So this
+// polls slowly and says when it is showing a cached answer rather than
+// pretending the number is live.
 
 const POLL_MS = 60_000;
+
+const PLATFORM = document.body.dataset.platform || 'youtube';
+const LABEL = { youtube: 'YouTube', tiktok: 'TikTok', instagram: 'Instagram' }[PLATFORM] || PLATFORM;
+// What each platform calls the thing it holds, and the link to an account.
+const NOUN = { youtube: 'Videos', tiktok: 'Posts', instagram: 'Reels' }[PLATFORM] || 'Posts';
+const accountUrl = (account) => {
+  if (PLATFORM === 'youtube') return account?.id ? `https://www.youtube.com/channel/${account.id}` : null;
+  if (PLATFORM === 'tiktok') return account?.username ? `https://www.tiktok.com/@${account.username}` : null;
+  if (PLATFORM === 'instagram') return account?.username ? `https://www.instagram.com/${account.username}/` : null;
+  return null;
+};
 
 const $ = (id) => document.getElementById(id);
 const nf = new Intl.NumberFormat();
@@ -75,21 +89,26 @@ function renderChannel(channel, videos) {
     return;
   }
   section.hidden = false;
-  $('avatar').src = channel.thumbnail || '';
+  $('avatar').src = channel.thumbnail || channel.avatar || '';
   const name = $('channel-name');
-  name.textContent = channel.title || 'Channel';
-  name.href = channel.id ? `https://www.youtube.com/channel/${channel.id}` : '#';
+  name.textContent = channel.title || channel.displayName || channel.username || LABEL;
+  const href = accountUrl(channel);
+  if (href) name.href = href;
+  else name.removeAttribute('href');
 
   const totalViews = videos.reduce((a, v) => a + (Number(v.views) || 0), 0);
+  const subs = channel.subscribers ?? channel.followers;
   $('channel-sub').textContent = channel.subscribersHidden
-    ? 'Subscriber count hidden'
-    : `${num(channel.subscribers)} subscriber${Number(channel.subscribers) === 1 ? '' : 's'}`;
+    ? 'Follower count hidden'
+    : subs === undefined
+      ? ''
+      : `${num(subs)} ${PLATFORM === 'youtube' ? 'subscriber' : 'follower'}${Number(subs) === 1 ? '' : 's'}`;
 
   const nums = $('channel-nums');
   nums.textContent = '';
   const pairs = [
     ['Views', num(channel.views)],
-    ['Videos', num(channel.videos)],
+    [NOUN, num(channel.videos ?? channel.posts)],
     ['Listed here', num(videos.length)],
     ['Views listed', num(totalViews)],
   ];
@@ -136,7 +155,7 @@ function renderCards(up, videos, stats) {
   cards.append(card('Posted by this tool', num(ours.length), ours.length ? `${num(ourViews)} views` : 'none yet'));
 
   const best = videos.reduce((top, v) => ((Number(v.views) || 0) > (Number(top?.views) || 0) ? v : top), null);
-  cards.append(card('Best video', best ? short(best.views) : '—', best ? best.title.slice(0, 38) : ''));
+  cards.append(card(`Best ${NOUN.toLowerCase().replace(/s$/, '')}`, best ? short(best.views) : '—', best ? best.title.slice(0, 38) : ''));
 
   if (up?.lastError) cards.append(card('Last error', 'see below', String(up.lastError).slice(0, 60), 'is-bad'));
 
@@ -153,7 +172,7 @@ function renderCards(up, videos, stats) {
     );
   }
 
-  if (stats?.cached) cards.append(card('Channel numbers', 'cached', `read ${ago(stats.fetchedAt)}`));
+  if (stats?.cached) cards.append(card('Account numbers', 'cached', `read ${ago(stats.fetchedAt)}`));
 }
 
 function sortVideos(videos) {
@@ -267,21 +286,30 @@ async function load({ force = false } = {}) {
       getJson(force ? '/api/stats?force=1' : '/api/stats'),
       getJson('/api/uploads'),
     ]);
-    const yt = stats?.youtube || {};
-    const up = uploads?.youtube || {};
+    const yt = stats?.[PLATFORM] || {};
+    const up = uploads?.[PLATFORM] || {};
 
     ourIds = new Set((up.recent || []).map((r) => r.videoId).filter(Boolean));
     lastVideos = yt.videos || [];
 
-    if (!yt.keys) {
+    // The setup note lives in the page, because what each platform needs is
+    // prose, not a status code. It is shown until the account is connected.
+    const setup = $('setup');
+    const ready = Boolean(yt.keys && yt.connected);
+    if (setup) setup.hidden = ready;
+
+    if (!up.built) {
       problem.hidden = false;
-      problem.textContent = 'No YouTube keys in .env, so there is nothing to show yet.';
+      problem.textContent = `${LABEL} upload is not built yet.`;
+    } else if (!yt.keys) {
+      problem.hidden = false;
+      problem.textContent = `No ${LABEL} keys in .env, so there is nothing to show yet.`;
     } else if (!yt.connected) {
       problem.hidden = false;
-      problem.textContent = 'Keys are set but the channel is not connected. Press Connect on the feed page.';
+      problem.textContent = `Keys are set but ${LABEL} is not connected. Press Connect on the main page.`;
     } else if (yt.error) {
       problem.hidden = false;
-      problem.textContent = `YouTube said: ${yt.error}`;
+      problem.textContent = `${LABEL} said: ${yt.error}`;
     } else {
       problem.hidden = true;
     }
@@ -291,7 +319,7 @@ async function load({ force = false } = {}) {
     renderVideos(lastVideos);
     renderQueue(up);
 
-    $('updated').textContent = yt.fetchedAt ? `channel read ${ago(yt.fetchedAt)}${yt.cached ? ' · cached' : ''}` : '';
+    $('updated').textContent = yt.fetchedAt ? `account read ${ago(yt.fetchedAt)}${yt.cached ? ' · cached' : ''}` : '';
   } catch (err) {
     problem.hidden = false;
     problem.textContent = `Could not read the page's data: ${err.message}`;

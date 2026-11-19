@@ -171,6 +171,38 @@ function assertGameMatches(text, game) {
  * trusted from a file written hours ago. Throws if the tags name a game other
  * than the one the short was recorded in.
  */
+/** A title with its trailing hashtags off, compared the way a reader would. */
+const sameish = (text) =>
+  String(text || '')
+    .replace(/\s#.*$/, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+
+/**
+ * Post copy whose title is not one already used.
+ *
+ * `avoid` steers the wording but cannot promise the result differs: the
+ * generator falls back to its first option when every option is taken, and
+ * on a real channel two shorts went up as "KaiCenat Has Chat in Tears in
+ * GTA 6" hours apart. Steering is not a guarantee, so the finished title is
+ * checked and asked for again with the collision named.
+ *
+ * After a few tries it posts the repeat anyway. A duplicate title is worth
+ * less than a short that never goes out, and a channel clipping five people
+ * will genuinely run out of ways to say the same thing.
+ */
+export function postWithoutRepeating(adapter, candidate, avoid = [], tries = 4) {
+  const taken = new Set(avoid.map(sameish));
+  const asked = [...avoid];
+  let post = adapter.post(candidate, { avoid: asked });
+  for (let i = 0; i < tries && taken.has(sameish(post.title)); i += 1) {
+    asked.push(String(post.title).replace(/\s#.*$/, ''));
+    post = adapter.post(candidate, { avoid: asked });
+  }
+  return post;
+}
+
 export function youtubePost(candidate, { avoid = [] } = {}) {
   // `avoid`: titles already posted, so a day is not one sentence five times.
   const parts = recopy({ file: candidate.file, saved: candidate.saved, avoid });
@@ -283,7 +315,7 @@ export class Uploader {
     this.settings = {};
     this.state = {};
     for (const platform of PLATFORMS) {
-      this.settings[platform] = { mode: 'off' };
+      this.settings[platform] = { mode: 'off', blockedUntil: 0, blockedReason: null };
       this.state[platform] = { blockedUntil: 0, blockedReason: null, lastError: null, connected: false };
     }
     this.busy = false;
@@ -402,6 +434,20 @@ export class Uploader {
       const saved = JSON.parse(await readFile(this.settingsPath, 'utf8'));
       for (const platform of PLATFORMS) {
         if (MODES.includes(saved?.[platform]?.mode)) this.settings[platform].mode = saved[platform].mode;
+        // A backoff with an end to it is worth remembering. YouTube refuses
+        // the day's uploads with a 400 and the next try is not until midnight
+        // Pacific, so a restart that forgot it spent a slot rediscovering the
+        // same refusal. Only finite waits come back: a stopped sign-in or a
+        // refused account is re-established by isConnected() and by trying,
+        // and restoring "forever" from a file could wedge the tool for good.
+        const until = Number(saved?.[platform]?.blockedUntil);
+        if (Number.isFinite(until) && until > this.now()) {
+          this.settings[platform].blockedUntil = until;
+          this.settings[platform].blockedReason = saved[platform].blockedReason || null;
+          this.state[platform].blockedUntil = until;
+          this.state[platform].blockedReason = saved[platform].blockedReason || null;
+          this.log(`upload: ${platform} is still waiting — ${saved[platform].blockedReason || 'blocked'}`);
+        }
       }
     } catch {
       /* first run: off */
@@ -431,10 +477,26 @@ export class Uploader {
     if (mode === 'on' && !adapter.hasKeys()) throw new Error(`add ${adapter.envHint} to .env first`);
     if (mode === 'on' && !this.state[platform].connected) throw new Error(`connect ${adapter.label} first`);
     this.settings[platform].mode = mode;
+    await this.saveSettings();
+    this.log(`upload: ${adapter.label} is now ${mode}`);
+  }
+
+  /** Written whole, through a temp file, so a crash cannot leave half of it. */
+  async saveSettings() {
     const temp = `${this.settingsPath}.tmp`;
     await writeFile(temp, JSON.stringify(this.settings, null, 2), 'utf8');
     await rename(temp, this.settingsPath);
-    this.log(`upload: ${adapter.label} is now ${mode}`);
+  }
+
+  /** Remember a wait that has an end, so a restart does not relearn it. */
+  rememberBlock(platform) {
+    const { blockedUntil, blockedReason } = this.state[platform];
+    const keep = Number.isFinite(blockedUntil) && blockedUntil > this.now();
+    this.settings[platform].blockedUntil = keep ? blockedUntil : 0;
+    this.settings[platform].blockedReason = keep ? blockedReason : null;
+    // Nothing waits on this: failing to write it costs one wasted attempt
+    // after a restart, which is the behaviour it is already replacing.
+    this.saveSettings().catch(() => {});
   }
 
   start(intervalMs = 60_000) {
@@ -523,7 +585,7 @@ export class Uploader {
       // The checks first: a short that fails them is set aside for good.
       let post;
       try {
-        post = adapter.post(candidate, { avoid });
+        post = postWithoutRepeating(adapter, candidate, avoid);
         const checked = await this.check(candidate.video);
         if (!checked.ok) throw new Error(`failed its checks: ${checked.problems.map((p) => p.text).join('; ')}`);
       } catch (err) {
@@ -609,12 +671,16 @@ export class Uploader {
       state.blockedUntil = this.now() + 10 * 60_000;
       state.blockedReason = err.message;
     }
+    this.rememberBlock(platform);
     return { platform, status: 'stopped', error: err.message };
   }
 
   /** Called after a successful Connect. */
   connected(platform = 'youtube') {
     Object.assign(this.state[platform], { connected: true, blockedUntil: 0, blockedReason: null, lastError: null });
+    // A fresh sign-in clears a remembered wait too, or reconnecting would
+    // look like it had done nothing until the old block expired on its own.
+    this.rememberBlock(platform);
   }
 
   /**

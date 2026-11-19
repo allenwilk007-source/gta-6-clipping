@@ -6,18 +6,19 @@
     <title>YouTube</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/style.css" />
-    <link rel="stylesheet" href="/youtube.css" />
+    <link rel="stylesheet" href="/account.css" />
   </head>
-  <body>
+  <body data-platform="youtube">
     <header class="bar">
       <div class="bar-left">
         <h1>YouTube</h1>
         <span class="game" id="updated">loading…</span>
       </div>
       <div class="bar-right">
-        <a class="back-link" href="/">← Feed</a>
-        <a class="back-link" href="/queue.html">Queue</a>
-        <a class="back-link" href="/stats.html">Stats</a>
+        <a class="back-link" href="/">← Clipping</a>
+        <a class="back-link is-here" href="/youtube.html">YouTube</a>
+        <a class="back-link" href="/tiktok.html">TikTok</a>
+        <a class="back-link" href="/instagram.html">Instagram</a>
         <button type="button" id="refresh" class="refresh-btn">Refresh</button>
       </div>
     </header>
@@ -25,7 +26,25 @@
     <main class="yt-main">
       <p class="yt-problem" id="problem" hidden></p>
 
-      <!-- Who this is -->
+      <section class="yt-setup" id="setup" hidden>
+        <h2>What this needs</h2>
+        <p>
+          A Google Cloud project with <b>YouTube Data API v3</b> enabled, an OAuth
+          client of type <b>Web application</b> with
+          <code>http://localhost:3000/auth/youtube/callback</code> as its redirect,
+          and your own Google account on the project's <b>test users</b> list. Put
+          the client id and secret in <code>.env</code> as
+          <code>YOUTUBE_CLIENT_ID</code> and <code>YOUTUBE_CLIENT_SECRET</code>,
+          restart, then press Connect on the main page.
+        </p>
+        <p class="yt-setup-note">
+          While the project is in Testing the sign-in lapses every 7 days, and
+          YouTube refuses further uploads once the account's own daily limit is
+          reached — which is separate from the project's quota and is not
+          published anywhere.
+        </p>
+      </section>
+
       <section class="yt-channel" id="channel" hidden>
         <img class="yt-avatar" id="avatar" alt="" width="72" height="72" />
         <div class="yt-channel-text">
@@ -35,10 +54,8 @@
         <dl class="yt-channel-nums" id="channel-nums"></dl>
       </section>
 
-      <!-- What the uploader is doing -->
       <section class="yt-cards" id="cards"></section>
 
-      <!-- Every video on the channel -->
       <section class="yt-videos">
         <div class="yt-videos-head">
           <h2>Videos <span class="yt-count" id="video-count"></span></h2>
@@ -50,10 +67,9 @@
           </div>
         </div>
         <ol class="yt-list" id="videos"></ol>
-        <p class="yt-empty" id="videos-empty" hidden>No videos on the channel yet.</p>
+        <p class="yt-empty" id="videos-empty" hidden>Nothing on the account yet.</p>
       </section>
 
-      <!-- What is about to go up -->
       <section class="yt-next">
         <h2>Next up <span class="yt-count" id="queued-count"></span></h2>
         <ol class="yt-queue" id="queue"></ol>
@@ -73,6 +89,6 @@
       </li>
     </template>
 
-    <script src="/youtube.js" type="module"></script>
+    <script src="/account.js" type="module"></script>
   </body>
 </html>

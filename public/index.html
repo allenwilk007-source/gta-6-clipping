@@ -6,6 +6,8 @@
     <title>Saturation Feed</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/stats.css" />
+    <link rel="stylesheet" href="/queue.css" />
   </head>
   <body>
     <header class="bar">
@@ -15,9 +17,9 @@
       </div>
       <div class="bar-right" id="stats"></div>
       <nav class="bar-links">
-        <a href="/queue.html">Queue</a>
-        <a href="/stats.html">Stats</a>
         <a href="/youtube.html">YouTube</a>
+        <a href="/tiktok.html">TikTok</a>
+        <a href="/instagram.html">Instagram</a>
       </nav>
     </header>
 
@@ -140,6 +142,43 @@
       <div class="shorts" id="shorts"></div>
     </section>
 
+    <!--
+      What goes out next, on every platform at once. The per-account pages
+      each show their own; this is the whole schedule in one place, beside the
+      shorts it is drawn from.
+    -->
+    <section class="schedule">
+      <h2 class="schedule-head">Going out next</h2>
+      <p class="queue-caveat">
+        Projections, not promises. They follow the same cap and spacing rules the
+        uploader actually applies — but a better-scoring short landing, a refusal,
+        or switching a platform off all move them.
+      </p>
+      <div class="schedule-grid">
+        <div class="platform" id="youtube">
+          <div class="platform-head">
+            <h3><a href="/youtube.html">YouTube</a></h3>
+            <span class="platform-state" id="youtube-state"></span>
+          </div>
+          <div class="platform-body" id="youtube-body"></div>
+        </div>
+        <div class="platform" id="tiktok">
+          <div class="platform-head">
+            <h3><a href="/tiktok.html">TikTok</a></h3>
+            <span class="platform-state" id="tiktok-state"></span>
+          </div>
+          <div class="platform-body" id="tiktok-body"></div>
+        </div>
+        <div class="platform" id="instagram">
+          <div class="platform-head">
+            <h3><a href="/instagram.html">Instagram</a></h3>
+            <span class="platform-state" id="instagram-state"></span>
+          </div>
+          <div class="platform-body" id="instagram-body"></div>
+        </div>
+      </div>
+    </section>
+
     <main id="feed" class="feed"></main>
 
     <template id="short-template">
@@ -191,5 +230,6 @@
     </template>
 
     <script src="/app.js" type="module"></script>
+    <script src="/queue.js" type="module"></script>
   </body>
 </html>

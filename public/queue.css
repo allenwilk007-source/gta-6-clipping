@@ -85,3 +85,39 @@
     grid-column: 3;
   }
 }
+
+/* ---------- the schedule on the main page ---------- */
+
+.schedule {
+  margin: 0 auto 18px;
+  padding: 0 16px;
+  max-width: 1400px;
+}
+
+.schedule-head {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.schedule .queue-caveat {
+  margin-top: 0;
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.schedule .platform-head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.schedule .platform-head h3 a {
+  text-decoration: none;
+}
+
+.schedule .platform-head h3 a:hover {
+  text-decoration: underline;
+}
