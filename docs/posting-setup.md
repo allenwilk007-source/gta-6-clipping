@@ -186,7 +186,8 @@ itself.
 
 ## When the keys are in
 
-YouTube is built; Instagram and TikTok are not yet.
+All three are built. The steps below are YouTube's; TikTok and Instagram
+work the same way from their own Connect buttons once their keys are in.
 
 1. Restart the app. The panel's **Auto upload** box shows YouTube.
 2. Click **Connect**. Google asks you to sign in and allow uploads to your

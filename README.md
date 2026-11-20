@@ -345,7 +345,8 @@ five a day, three hours apart, best engagement score first, each one checked
 again just before it goes. **Dry run** does all of it except the upload and
 logs what it would have posted, so a day can be read before it is real.
 Setup, limits and failure handling: [docs/posting-setup.md](docs/posting-setup.md).
-Instagram and TikTok upload are not built yet.
+TikTok (as drafts to your inbox) and Instagram (Reels, through a Facebook Page)
+are built too; see the same file for their setup.
 
 ### Posting
 
