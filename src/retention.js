@@ -21,7 +21,13 @@ const STAMP = /-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z\.mp4$/;
 
 export function retentionConfig(env = process.env) {
   const hours = Number(env.SHORTS_KEEP_HOURS);
-  return { keepHours: Number.isFinite(hours) && hours >= 0 ? hours : 6 };
+  const side = Number(env.CLIPS_KEEP_HOURS);
+  return {
+    keepHours: Number.isFinite(hours) && hours >= 0 ? hours : 6,
+    // The folders a short goes to die in, swept on their own clock because
+    // nothing is waiting to be posted out of them. 0 keeps them forever.
+    sideHours: Number.isFinite(side) && side >= 0 ? side : 24,
+  };
 }
 
 export const KEPT_PATH = join(config.root, 'data', 'kept.json');
@@ -35,9 +41,20 @@ export function madeAt(name, mtimeMs) {
 }
 
 export class Retention {
-  constructor({ dir, keepHours = retentionConfig().keepHours, keptPath = KEPT_PATH, busy = () => [], log = () => {}, now = Date.now } = {}) {
+  constructor({
+    dir,
+    keepHours = retentionConfig().keepHours,
+    sideDirs = [],
+    sideHours = retentionConfig().sideHours,
+    keptPath = KEPT_PATH,
+    busy = () => [],
+    log = () => {},
+    now = Date.now,
+  } = {}) {
     this.dir = dir;
     this.keepHours = keepHours;
+    this.sideDirs = sideDirs;
+    this.sideHours = sideHours;
     this.keptPath = keptPath;
     this.busy = busy;
     this.log = log;
@@ -56,6 +73,11 @@ export class Retention {
 
   get enabled() {
     return this.keepHours > 0;
+  }
+
+  /** Either job having work to do is reason enough to run the timer. */
+  get sweeping() {
+    return this.sideHours > 0 && this.sideDirs.length > 0;
   }
 
   isKept(name) {
@@ -119,11 +141,63 @@ export class Retention {
     return { deleted, bytes };
   }
 
+  /**
+   * The folders a short goes to die in.
+   *
+   * prune() looks after clips/ready, where shorts wait to be posted and the
+   * owner's downloads have to survive. These are the others. clips/rejected
+   * was left alone on purpose, so a failed short could be looked at; left
+   * alone turned out to mean kept forever. clips/shelved is worse: nothing in
+   * this repo writes it any more, and it was still holding gigabytes from a
+   * version that no longer exists.
+   *
+   * Nothing is exempt here. No upload reads these folders, and a short the
+   * owner wanted would have been downloaded out of clips/ready instead.
+   */
+  async sweep() {
+    if (!this.sweeping || this.broken) return { deleted: 0, bytes: 0 };
+    const cutoff = this.now() - this.sideHours * HOUR;
+    let deleted = 0;
+    let bytes = 0;
+    for (const dir of this.sideDirs) {
+      let names;
+      try {
+        names = await readdir(dir);
+      } catch {
+        continue; // not there is the same as empty
+      }
+      for (const name of names) {
+        const path = join(dir, name);
+        let info;
+        try {
+          info = await stat(path);
+        } catch {
+          continue;
+        }
+        // The render stamp is only read off a .mp4 name, so a .txt or .json
+        // sidecar would fall back to its file time and outlive the video it
+        // belongs to. Age every part of a short by the video's name.
+        if (!info.isFile() || madeAt(name.replace(/\.[a-z0-9]+$/i, '.mp4'), info.mtimeMs) >= cutoff) continue;
+        bytes += info.size;
+        try {
+          await rm(path, { force: true });
+          deleted += 1;
+        } catch {
+          /* in use or gone: next time */
+        }
+      }
+    }
+    if (deleted) {
+      this.log(`retention: cleared ${deleted} file(s) over ${this.sideHours}h old from the side folders (${(bytes / 1e9).toFixed(2)} GB)`);
+    }
+    return { deleted, bytes };
+  }
+
   start(everyMs = 10 * 60_000) {
-    if (!this.enabled) return;
+    if (!this.enabled && !this.sweeping) return;
     const run = () => {
       if (this.running) return;
-      this.running = this.prune()
+      this.running = Promise.all([this.prune(), this.sweep()])
         .catch((err) => this.log(`retention: ${err.message}`))
         .finally(() => {
           this.running = null;
