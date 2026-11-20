@@ -1071,3 +1071,67 @@ select {
   color: var(--danger);
   font-weight: 600;
 }
+
+/* ---------- a row of labelled values ---------- */
+
+/* Numbers a person scans for, laid out so they can be scanned for. Spacing
+   does the grouping; there is no box around any of it. */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin: 0;
+}
+
+.facts dt {
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.facts dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The sentences. Still here, still true, no longer competing with the
+   numbers for the same line. */
+.facts-note {
+  margin: 10px 0 0;
+  max-width: 68ch;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.facts-note.is-error {
+  color: var(--danger);
+}
+
+/* The fold for channels that are not doing anything right now. Reads as part
+   of the row of chips rather than as a separate control. */
+.channel-more {
+  padding: 4px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.channel-more:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.channel-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
