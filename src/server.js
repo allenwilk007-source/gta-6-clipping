@@ -384,35 +384,50 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // GET /api/stats -> what the connected channels actually did.
+  // GET /api/stats -> what the connected accounts actually did.
+  //
+  // Every platform answers here, because each account page asks this one route
+  // and reads its own platform out of the reply. While only YouTube answered,
+  // the TikTok page read a missing entry as "no keys in .env" and said so to a
+  // owner whose keys were fine.
   //
   // Read-only, and behind StatsCache's refresh floor so a page left open does
   // not spend the uploader's quota. ?force=1 is for a person pressing refresh,
   // not for the page's own polling.
   if (url.pathname === '/api/stats') {
-    const keys = youtube.youtubeKeys();
-    if (!youtube.hasKeys(keys)) {
-      sendJson(res, 200, { youtube: { keys: false, connected: false } });
-      return;
+    const state = {};
+    for (const [platform, { api, keys: readKeys }] of Object.entries(SIGN_IN)) {
+      const keys = readKeys();
+      if (!api.hasKeys(keys)) {
+        state[platform] = { keys: false, connected: false };
+        continue;
+      }
+      // YouTube and TikTok keep a refresh token; Instagram keeps a 60-day
+      // user token. Either one means the owner has been through the consent.
+      const saved = await api.loadToken();
+      state[platform] = {
+        keys: true,
+        connected: Boolean(saved?.refreshToken || saved?.userToken),
+      };
     }
-    const saved = await youtube.loadToken();
-    if (!saved?.refreshToken) {
-      sendJson(res, 200, { youtube: { keys: true, connected: false } });
-      return;
+
+    if (state.youtube.connected) {
+      const keys = youtube.youtubeKeys();
+      const saved = await youtube.loadToken();
+      try {
+        const token = await youtube.accessToken(keys, saved.refreshToken);
+        Object.assign(state.youtube, await statsCache.get({ token, force: url.searchParams.has('force') }));
+      } catch (err) {
+        // Only a real auth failure means the sign-in is gone. A 5xx, a 429 or a
+        // dropped connection is the network, and offering Connect for those
+        // would send the owner to re-consent over a blip.
+        const kind = statsErrorKind(err);
+        state.youtube.connected = kind !== 'auth';
+        state.youtube.error = { kind, message: err.message };
+      }
     }
-    try {
-      const token = await youtube.accessToken(keys, saved.refreshToken);
-      const stats = await statsCache.get({ token, force: url.searchParams.has('force') });
-      sendJson(res, 200, { youtube: { keys: true, connected: true, ...stats } });
-    } catch (err) {
-      // Only a real auth failure means the sign-in is gone. A 5xx, a 429 or a
-      // dropped connection is the network, and offering Connect for those
-      // would send the owner to re-consent over a blip.
-      const kind = statsErrorKind(err);
-      sendJson(res, 200, {
-        youtube: { keys: true, connected: kind !== 'auth', error: { kind, message: err.message } },
-      });
-    }
+
+    sendJson(res, 200, state);
     return;
   }
 
