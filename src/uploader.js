@@ -590,10 +590,7 @@ export class Uploader {
     const adapter = this.adapter(platform);
     const key = this.platformKey(platform, mode);
     const state = this.state[platform];
-    const avoid = this.store
-      .uploadsSince(key, this.now() - 3 * 24 * 3600_000)
-      .map((r) => String(r.title || '').replace(/\s#.*$/, ''))
-      .filter(Boolean);
+    const avoid = this.avoidList(key);
     for (const candidate of await candidates({ store: this.store, dir: this.dir, platform: key })) {
       // The checks first: a short that fails them is set aside for good.
       let post;
@@ -735,6 +732,30 @@ export class Uploader {
     }));
   }
 
+  /** Titles already posted lately, which the next one should not repeat. */
+  avoidList(key) {
+    return this.store
+      .uploadsSince(key, this.now() - 3 * 24 * 3600_000)
+      .map((r) => String(r.title || '').replace(/\s#.*$/, ''))
+      .filter(Boolean);
+  }
+
+  /**
+   * What the uploader would post for this short right now.
+   *
+   * Only "right now": if something else goes out first it joins the avoid
+   * list, and the wording can still change. Falls back to the stored text if
+   * rebuilding throws, because a panel must not fail over wording.
+   */
+  previewTitle(platform, candidate, avoid = []) {
+    const stored = candidate.saved.platforms?.[platform]?.split('\n')[0] || candidate.saved.caption;
+    try {
+      return recopy({ file: candidate.file, saved: candidate.saved, avoid }).platforms[platform]?.split('\n')[0] || stored;
+    } catch {
+      return stored;
+    }
+  }
+
   async platformView(platform) {
     const adapter = this.adapter(platform);
     const mode = this.settings[platform].mode;
@@ -745,6 +766,12 @@ export class Uploader {
     const queue = this.store ? await this.queueFor(key) : [];
     const next = queue.slice(0, 5);
     const recent = this.store ? this.store.uploadsSince(key, this.now() - 7 * 24 * 3600_000).reverse().slice(0, 8) : [];
+    // The wording the posting path would choose, worked out its way. The panel
+    // used to show the text stored beside the short when it was cut, but the
+    // uploader rebuilds that at post time and replaces it, so the page named a
+    // title that never went out. A page naming the wrong title is worse than a
+    // page naming none.
+    const avoiding = this.store ? this.avoidList(key) : [];
     return {
       built: true,
       keys: adapter.hasKeys(),
@@ -759,7 +786,7 @@ export class Uploader {
       next: next.map((c) => ({
         file: c.file,
         score: c.score,
-        title: c.saved.platforms?.[platform]?.split('\n')[0] || c.saved.caption,
+        title: this.previewTitle(platform, c, avoiding),
       })),
       queued: queue.length,
       upcoming: this.upcoming(platform, queue),
