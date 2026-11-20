@@ -60,6 +60,14 @@ h1 {
   letter-spacing: 0.01em;
 }
 
+/* The mark sits with the word rather than beside it: aligned to the text's
+   own baseline box, not the line box, so it does not ride high. */
+.mark {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 9px;
+}
+
 .game {
   color: var(--muted);
   font-size: 13px;

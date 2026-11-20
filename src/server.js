@@ -56,6 +56,9 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
 };
 
 // TERMS.md and PRIVACY.md are the promises; these routes serve those same two
