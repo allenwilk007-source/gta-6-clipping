@@ -9,6 +9,7 @@ import { clipQueueStatus, enqueueClip, getClipJob, publicJob } from './clipjobs.
 import { config, credentialsMissing, nothingToRun, root } from './config.js';
 import { Automation, SHORT_FILE, parseRange } from './automation.js';
 import { Feed } from './feed.js';
+import { authorized, isPublicPath } from './gate.js';
 import { acquireLock, lockMessage } from './lock.js';
 import { PLATFORMS, Uploader } from './uploader.js';
 import * as instagram from './instagram.js';
@@ -257,6 +258,19 @@ async function sendShort(req, res, name, download) {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${config.port}`);
+
+  // Before anything else. The page can change the streamer list, flip the
+  // upload switches and spend the uploader’s quota, so once the address is
+  // reachable the address alone cannot be what protects it.
+  if (!isPublicPath(url.pathname) && !authorized(req.headers.authorization, config.dashboardPassword)) {
+    res
+      .writeHead(401, {
+        'www-authenticate': 'Basic realm="clip dashboard", charset="UTF-8"',
+        'content-type': 'text/plain; charset=utf-8',
+      })
+      .end('Set DASHBOARD_PASSWORD in .env and sign in with it. Any username.\n');
+    return;
+  }
 
   if (url.pathname === '/api/feed') {
     // ?demo=1 renders the UI off a fixture, so the layout can be checked while
