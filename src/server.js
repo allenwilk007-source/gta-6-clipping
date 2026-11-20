@@ -54,7 +54,67 @@ const TYPES = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8',
 };
+
+// TERMS.md and PRIVACY.md are the promises; these routes serve those same two
+// files rather than a copy of them, so a page and the repo cannot drift apart.
+const DOCS = {
+  '/terms': { file: 'TERMS.md', title: 'Terms' },
+  '/privacy': { file: 'PRIVACY.md', title: 'Privacy' },
+};
+
+const escapeHtml = (text) =>
+  text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+// The text exactly as written, wrapped but never reformatted. A hand-rolled
+// Markdown parser is the last thing that should stand between a reader and a
+// promise, so this renders none of it.
+async function sendDoc(res, { file, title }) {
+  let text;
+  try {
+    text = await readFile(join(root, file), 'utf8');
+  } catch {
+    res.writeHead(404).end('not found');
+    return;
+  }
+  res.writeHead(200, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-cache',
+  });
+  res.end(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root { color-scheme: dark light; }
+      body {
+        margin: 0;
+        background: #0f1115;
+        color: #e7e9ee;
+        font: 15px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      main { max-width: 82ch; margin: 0 auto; padding: 28px 16px 64px; }
+      a { color: #7aa2f7; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 18px 0 0; }
+      @media (prefers-color-scheme: light) {
+        body { background: #fff; color: #1a1a1a; }
+        a { color: #0b5fff; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a href="/">&larr; Clipping</a>
+      <pre>${escapeHtml(text)}</pre>
+    </main>
+  </body>
+</html>
+`);
+}
 
 // One copy at a time: see lock.js for what happened when there were three.
 const LOCK_PATH = join(root, 'data', 'app.lock');
@@ -437,6 +497,12 @@ const server = createServer(async (req, res) => {
       lastError: feed.lastError,
       clips: { ...clipQueueStatus(), dir: config.clipDir },
     });
+    return;
+  }
+
+  const doc = DOCS[url.pathname];
+  if (doc) {
+    await sendDoc(res, doc);
     return;
   }
 
