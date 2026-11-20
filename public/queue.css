@@ -121,3 +121,9 @@
 .schedule .platform-head h3 a:hover {
   text-decoration: underline;
 }
+
+/* The one sentence that used to be printed in every column. Kept at the same
+   weight as the caveat above it, because it is the same kind of remark. */
+.queue-caveat.is-off {
+  color: var(--warm);
+}

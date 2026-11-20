@@ -12,6 +12,8 @@ const PLATFORMS = ['youtube', 'tiktok', 'instagram'];
 const els = {
   updated: document.getElementById('updated'),
   refresh: document.getElementById('refresh'),
+  offNote: document.getElementById('queue-off-note'),
+  emptyNote: document.getElementById('queue-empty-note'),
   youtube: { state: document.getElementById('youtube-state'), body: document.getElementById('youtube-body') },
   tiktok: { state: document.getElementById('tiktok-state'), body: document.getElementById('tiktok-body') },
   instagram: { state: document.getElementById('instagram-state'), body: document.getElementById('instagram-body') },
@@ -48,10 +50,11 @@ function stateLine(state) {
 
 /** Why nothing is scheduled, when nothing is. */
 function emptyReason(state) {
-  if (!state.queued) {
-    return `<p class="pending-note">Nothing in the queue. Shorts appear here once they are rendered, scored above
-            the keep line, and not already posted to ${state.label}.</p>`;
-  }
+  // Three empty columns used to print the same forty-word explanation three
+  // times, once per platform, differing only in the platform's name. The
+  // explanation is said once above, by render(); a column with nothing in it
+  // only has to say so.
+  if (!state.queued) return '<p class="pending-note">Nothing queued.</p>';
   // There are shorts waiting but no times: something is holding it with no
   // known end. Say which thing, rather than showing an empty list.
   const why = state.lastError ? `: ${escape(state.lastError)}` : '';
@@ -93,10 +96,12 @@ function renderPlatform(name, state) {
 
   // Two separate facts, so they stack rather than hide each other: whether
   // it is switched on, and what an upload to this platform actually is.
+  // "This platform is off. The times below are when these would go out if
+  // you switched it on" is the same sentence whatever the platform, and all
+  // three were usually off together, so the reader met it three times in one
+  // screen. It is said once, above, by render(). What stays here is only what
+  // differs between platforms.
   const notes = [];
-  if (state.mode === 'off') {
-    notes.push('This platform is <b>off</b>. The times below are when these would go out if you switched it on.');
-  }
   if (state.draftsOnly) {
     notes.push('Each one arrives as a <b>draft in your TikTok inbox</b> at the time shown — you still tap post.');
   }
@@ -106,7 +111,33 @@ function renderPlatform(name, state) {
   target.body.innerHTML = summary + banner + (rows ? `<ol class="queue-list">${rows}</ol>` : emptyReason(state));
 }
 
+const LABELS = { youtube: 'YouTube', tiktok: 'TikTok', instagram: 'Instagram' };
+
+/** "YouTube and TikTok", "YouTube, TikTok and Instagram". */
+const listNames = (names) =>
+  names.length < 2 ? names[0] || '' : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+
 function render(view) {
+  // Which platforms are switched off, said once rather than once per column.
+  const off = PLATFORMS.filter((name) => view[name]?.built && view[name].mode === 'off');
+  if (els.offNote) {
+    els.offNote.hidden = off.length === 0;
+    if (off.length) {
+      const all = off.length === PLATFORMS.filter((n) => view[n]?.built).length;
+      const who = all && off.length > 1 ? 'All of them are' : `${listNames(off.map((n) => LABELS[n]))} ${off.length > 1 ? 'are' : 'is'}`;
+      els.offNote.textContent = `${who} off. The times below are when shorts would go out if you switched them on.`;
+    }
+  }
+
+  // Why a column might be empty, said once for however many are.
+  const built = PLATFORMS.filter((name) => view[name]?.built);
+  const empty = built.filter((name) => !view[name].queued);
+  if (els.emptyNote) {
+    els.emptyNote.hidden = empty.length === 0;
+    els.emptyNote.textContent =
+      'A short appears here once it is rendered, scored above the keep line, and not already posted.';
+  }
+
   for (const name of PLATFORMS) {
     const state = view[name];
     if (!state?.built) continue;

@@ -418,6 +418,17 @@ select {
   color: var(--warm);
 }
 
+/* How the measurement was arrived at, rather than the measurement. Said as a
+   tag so it reads as a qualification and not as another number in the row. */
+.meta-flag {
+  padding: 1px 9px 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--flooded);
+  font-size: 11px;
+  font-variant-numeric: normal;
+}
+
 .actions {
   display: flex;
   gap: 8px;

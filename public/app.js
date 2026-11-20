@@ -125,22 +125,48 @@ function buildCard(moment) {
   const title = node.querySelector('.title');
   title.textContent = moment.title || moment.streamTitle || '';
 
-  const bits = [];
-  if (moment.chat?.spiking) {
-    bits.push(`<span class="hot">chat ${moment.chatZ.toFixed(1)}σ</span>`);
-  } else if (moment.chatZ > 0) {
-    bits.push(`chat ${moment.chatZ.toFixed(1)}σ`);
-  }
-  if (moment.saturation > 0) bits.push(`${moment.clipsPerMinute}/min`);
-  if (moment.viewers != null) bits.push(`${number(moment.viewers)} viewers`);
+  // This was one row of up to eight middot-separated phrases, all the same
+  // weight, so "offset estimated" said itself as loudly as the viewer count.
+  // Measurements keep the row; the caveats about how the measurement was
+  // arrived at become tags after it, where they are read second and read as
+  // qualifications rather than as more numbers.
+  const measures = [];
+  const caveats = [];
+
+  if (moment.chat?.spiking) measures.push([`chat ${moment.chatZ.toFixed(1)}σ`, 'hot']);
+  else if (moment.chatZ > 0) measures.push([`chat ${moment.chatZ.toFixed(1)}σ`]);
+  if (moment.saturation > 0) measures.push([`${moment.clipsPerMinute}/min`]);
+  if (moment.viewers != null) measures.push([`${number(moment.viewers)} viewers`]);
   // Same lie as saturation: with no API this is an absence, not a zero.
-  if (!chatOnly) bits.push(`${number(moment.clipViews)} clip views`);
-  bits.push(ago(moment.minutesSinceLastClip));
-  if (moment.firstClipper) bits.push(`first: ${moment.firstClipper}`);
-  if (moment.basis === 'created') bits.push('VOD position pending');
-  if (moment.offsetEstimated) bits.push('offset estimated');
-  if (moment.shared) bits.push('<span class="shared">whole category spiked</span>');
-  node.querySelector('.meta').innerHTML = bits.join('<span>·</span>');
+  if (!chatOnly) measures.push([`${number(moment.clipViews)} clip views`]);
+  measures.push([ago(moment.minutesSinceLastClip)]);
+  if (moment.firstClipper) measures.push([`first: ${moment.firstClipper}`]);
+
+  if (moment.basis === 'created') caveats.push(['VOD position pending']);
+  if (moment.offsetEstimated) caveats.push(['offset estimated']);
+  if (moment.shared) caveats.push(['whole category spiked', 'shared']);
+
+  // Built as nodes rather than joined into a string: a broadcaster's name goes
+  // in here, and it is theirs to choose, not ours to trust.
+  const metaNodes = [];
+  measures.forEach(([text, kind], i) => {
+    if (i) {
+      const dot = document.createElement('span');
+      dot.textContent = '·';
+      metaNodes.push(dot);
+    }
+    const cell = document.createElement('span');
+    if (kind) cell.className = kind;
+    cell.textContent = text;
+    metaNodes.push(cell);
+  });
+  for (const [text, kind] of caveats) {
+    const tag = document.createElement('span');
+    tag.className = kind ? `meta-flag ${kind}` : 'meta-flag';
+    tag.textContent = text;
+    metaNodes.push(tag);
+  }
+  node.querySelector('.meta').replaceChildren(...metaNodes);
 
   renderChatEvidence(node.querySelector('.chat-evidence'), moment);
 
