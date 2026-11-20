@@ -11,6 +11,7 @@ const clip = (extra = {}) => ({
   video_id: 'v123',
   game_id: '1867279146',
   title: 'the private dance',
+  language: 'en',
   view_count: 5000,
   duration: 30,
   vod_offset: 1000,
@@ -33,6 +34,35 @@ describe('popularMoments keeps only what can actually be cut', () => {
   test('clips nobody watched are left out', () => {
     assert.equal(popularMoments([clip({ view_count: 12 })], { minViews: 200 }).length, 0);
     assert.equal(popularMoments([clip({ view_count: 900 })], { minViews: 200 }).length, 1);
+  });
+});
+
+describe('popularMoments keeps to the channel language', () => {
+  test('another language is left out, however well it did', () => {
+    const foreign = [
+      clip({ id: 'a', language: 'ru', view_count: 90000, title: 'грязюка' }),
+      clip({ id: 'b', language: 'es', view_count: 80000, broadcaster_id: '2' }),
+    ];
+    assert.equal(popularMoments(foreign).length, 0);
+  });
+
+  test('a regional tag still counts as the language', () => {
+    assert.equal(popularMoments([clip({ language: 'en-gb' })]).length, 1);
+  });
+
+  test('a clip that does not say is left out, because it cannot be confirmed', () => {
+    assert.equal(popularMoments([clip({ language: '' })]).length, 0);
+    assert.equal(popularMoments([clip({ language: undefined })]).length, 0);
+  });
+
+  test('asking for more languages takes them', () => {
+    const two = [clip({ id: 'a', language: 'en' }), clip({ id: 'b', language: 'es', broadcaster_id: '2' })];
+    assert.equal(popularMoments(two, { languages: ['en', 'es'] }).length, 2);
+  });
+
+  test('asking for none takes everything', () => {
+    const mixed = [clip({ id: 'a', language: 'ru' }), clip({ id: 'b', language: '', broadcaster_id: '2' })];
+    assert.equal(popularMoments(mixed, { languages: null }).length, 2);
   });
 });
 

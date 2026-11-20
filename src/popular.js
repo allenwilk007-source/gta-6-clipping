@@ -41,9 +41,26 @@ const reactionAt = (clip) => {
  * each other are treated as one moment, keeping the most-watched of them and
  * adding up what the rest were worth.
  */
-export function popularMoments(clips, { minViews = 200, nearSeconds = 45, limit = 50, game = null } = {}) {
+export function popularMoments(
+  clips,
+  { minViews = 200, nearSeconds = 45, limit = 50, game = null, languages = ['en'] } = {},
+) {
+  // The most-watched clips of a category are whatever the biggest audience
+  // watched, in whatever language they speak it. A Spanish clip is not worse,
+  // it is just not for this channel — and a clip whose title is in a script
+  // the caption cleaner strips arrives with no title at all, which is worse
+  // than not posting it. `languages: null` takes everything.
+  const wanted = languages?.length ? new Set(languages.map((l) => String(l).toLowerCase())) : null;
+  const speaks = (clip) => {
+    if (!wanted) return true;
+    // Twitch sends "en", and sometimes a regional tag like "en-gb".
+    const tag = String(clip.language || '').toLowerCase();
+    return tag ? wanted.has(tag.split('-')[0]) : false;
+  };
+
   const usable = (clips || [])
     .filter((c) => c && c.video_id && Number.isFinite(offsetOf(c.vod_offset)))
+    .filter(speaks)
     .filter((c) => Number(c.view_count) >= minViews)
     .sort((a, b) => Number(b.view_count) - Number(a.view_count));
 
