@@ -481,11 +481,24 @@ export class Uploader {
     this.log(`upload: ${adapter.label} is now ${mode}`);
   }
 
-  /** Written whole, through a temp file, so a crash cannot leave half of it. */
-  async saveSettings() {
-    const temp = `${this.settingsPath}.tmp`;
-    await writeFile(temp, JSON.stringify(this.settings, null, 2), 'utf8');
-    await rename(temp, this.settingsPath);
+  /**
+   * Written whole, through a temp file, so a crash cannot leave half of it.
+   *
+   * One at a time. Two saves overlapping both wrote the same temp file and
+   * then both renamed it, and the second rename failed with ENOENT because the
+   * first had already moved it away — losing whichever write lost the race.
+   * rememberBlock() saves without waiting for it, so that overlap is ordinary
+   * rather than rare, and queueing is cheaper than the lost setting.
+   */
+  saveSettings() {
+    this.saving = Promise.resolve(this.saving)
+      .catch(() => {})
+      .then(async () => {
+        const temp = `${this.settingsPath}.tmp`;
+        await writeFile(temp, JSON.stringify(this.settings, null, 2), 'utf8');
+        await rename(temp, this.settingsPath);
+      });
+    return this.saving;
   }
 
   /** Remember a wait that has an end, so a restart does not relearn it. */
