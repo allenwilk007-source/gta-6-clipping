@@ -81,6 +81,24 @@ export const shortformConfig = () => {
 const UNDRAWABLE = /[^\p{Script=Latin}\p{N}\s.,!?'"&:;()\-–—…%$#@+/\p{Extended_Pictographic}\u200d\ufe0f]/gu;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
+// Taking the emoji out of "GTA VI🔥BOYS NIGHT" must leave a space behind,
+// or the words either side of it are welded into "GTA VIBOYS NIGHT" and the
+// title becomes a word nobody searches for. Every place that drops emoji goes
+// through here.
+const withoutEmoji = (text) =>
+  String(text ?? '')
+    .replace(new RegExp(EMOJI.source, 'gu'), ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+// A stream title is a banner: several claims joined by whatever the streamer
+// likes as a separator. The furniture test below catches "|" and "[]", but a
+// banner joined by emoji read as one long sentence someone had written about
+// this moment, and the whole thing became the title. An emoji with letters on
+// both sides is being used as a separator; twice over is a banner.
+const EMOJI_SEPARATOR = /\p{L}\s*\p{Extended_Pictographic}[\p{Extended_Pictographic}\u200d\ufe0f\s]*\p{L}/gu;
+export const looksLikeBanner = (text) => (String(text ?? '').match(EMOJI_SEPARATOR) || []).length >= 2;
+
 /**
  * A title made fit to print over video.
  *
@@ -325,7 +343,12 @@ export function titleFor(
   const raw = String(moment?.title || '');
 
   const candidates = [];
-  if (moment?.source !== 'chat' && !STREAM_TITLE.test(raw) && !isBoilerplateTitle(raw, moment?.broadcaster)) {
+  if (
+    moment?.source !== 'chat' &&
+    !STREAM_TITLE.test(raw) &&
+    !looksLikeBanner(raw) &&
+    !isBoilerplateTitle(raw, moment?.broadcaster)
+  ) {
     const clipTitle = cleanCaption(raw);
     if (clipTitle) candidates.push(withEmoji(censor(clipTitle, { mild })));
   }
@@ -421,12 +444,9 @@ function fill(template, name, game) {
 /** A clip title a person wrote about this moment, cleaned up, or null. */
 export function writtenTitle(moment, { mild = true } = {}) {
   const raw = String(moment?.title || '');
-  if (moment?.source === 'chat' || !raw || STREAM_TITLE.test(raw)) return null;
+  if (moment?.source === 'chat' || !raw || STREAM_TITLE.test(raw) || looksLikeBanner(raw)) return null;
   if (isBoilerplateTitle(raw, moment?.broadcaster)) return null;
-  const written = cleanCaption(raw)
-    .replace(new RegExp(EMOJI.source, 'gu'), '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const written = withoutEmoji(cleanCaption(raw));
   if (written.split(/\s+/).length < 2) return null;
   const text = censor(written, { mild });
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -461,10 +481,7 @@ const hookPattern = (hook) =>
  * emoji. 👀 and 🔥 are also the neutral pair, so on their own they say nothing.
  */
 export function reactionFromEmoji(caption) {
-  const text = String(caption || '')
-    .replace(new RegExp(EMOJI.source, 'gu'), '')
-    .replace(/[\u200d\ufe0f]/g, '')
-    .trim();
+  const text = withoutEmoji(String(caption || '').replace(/[\u200d\ufe0f]/g, ''));
   for (const [name, { hooks }] of Object.entries(REACTIONS)) {
     if (hooks.some((hook) => hookPattern(hook.replace('{name}', 'chat')).test(text) || hookPattern(hook).test(text))) return name;
   }
@@ -518,16 +535,14 @@ export const INSTAGRAM_HOOK_MAX = 125;
  * tag, all inside 100 characters. The creator's tag goes in only if it fits;
  * the description is shortened before #Shorts is ever dropped.
  */
-export function youtubeTitle(about, moment) {
+export function youtubeTitle(about, moment, { titleCase: useTitleCase = true } = {}) {
   const gameTag = gameInfo(moment?.game)?.youtube || '';
   const full = ['#Shorts', gameTag, creatorTag(moment)].filter(Boolean).join(' ');
   const short = ['#Shorts', gameTag].filter(Boolean).join(' ');
-  const text = titleCase(
-    String(about || '')
-      .replace(new RegExp(EMOJI.source, 'gu'), '')
-      .replace(/\s+/g, ' ')
-      .trim(),
-  );
+  const plain = withoutEmoji(about);
+  // A quote is speech, so it keeps the speaker's own capitalisation; a
+  // description is a headline and gets Title Case.
+  const text = useTitleCase ? titleCase(plain) : plain;
   for (const tags of [full, short]) {
     if (text.length + 1 + tags.length <= YOUTUBE_TITLE_MAX) return `${text} ${tags}`;
   }
@@ -556,6 +571,21 @@ export function postPartsFor(
   // line again — unless a person wrote what happens, which beats either.
   const written = writtenTitle(moment, { mild });
   const youtubeAbout = written && sameTitle(written) === sameTitle(what) ? what : describe(moment, { avoid: [...avoid, what], mild, reaction: given });
+  // Nothing here watches the video, so the most it can honestly say about what
+  // happens is what somebody said while it happened. A line from the stream
+  // beats "chat goes wild", which is true of every clip this tool ever makes.
+  // A title a person wrote still beats both.
+  // A line somebody said is the most concrete thing known about a clip nothing
+  // watched, so when there is one the YouTube title carries it whole. The lead
+  // is kept to who and where: the long "what chat did" wording spent so much of
+  // the 100 characters that the quote was cut off mid-sentence, and half a
+  // sentence in quotation marks tells a viewer less than no quote at all.
+  // TikTok still opens with the line itself, so the two do not read alike.
+  const youtubeGame = gameLabel(moment?.game);
+  const spoken =
+    !written && line
+      ? `${titleCase(who || 'Twitch')}${youtubeGame ? ` in ${youtubeGame}` : ''}: "${line}"`
+      : null;
   const reaction = REACTIONS[dominantReaction(moment?.chat)] || null;
   const emoji = [...title].filter((c) => EMOJI.test(c)).at(-1) || reaction?.emoji[0] || '';
 
@@ -590,9 +620,9 @@ export function postPartsFor(
       tiktok: `${tiktokHook}${who ? ` (credit: ${who.toLowerCase()} on twitch)` : ''} ${tagsFor('#twitch', '#gaming')}`,
       instagram: [instaHook, credit, tagsFor('#gaming', '#twitch', '#reels')].filter(Boolean).join('\n'),
       youtube: [
-        youtubeTitle(youtubeAbout, moment),
+        youtubeTitle(spoken || youtubeAbout, moment, { titleCase: !spoken }),
         '',
-        line ? `"${line}"` : null,
+        !spoken && line ? `"${line}"` : null,
         credit || null,
         link ? `${linkLabel}: ${link}` : null,
         '',
