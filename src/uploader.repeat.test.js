@@ -154,3 +154,20 @@ test('reconnecting clears a remembered wait', async () => {
   assert.equal(u.settings.youtube.blockedUntil, 0);
   assert.equal(u.settings.youtube.blockedReason, null);
 });
+
+test('two saves at once do not race each other out of a file', async () => {
+  const dir = await temp();
+  const settingsPath = join(dir, 'uploads.json');
+  const uploader = await uploaderOn(dir, settingsPath);
+
+  // rememberBlock saves without waiting for it, so a caller that also saves is
+  // an ordinary overlap rather than a contrived one. Both must finish, and the
+  // file must be whole and current afterwards.
+  uploader.state.youtube.blockedUntil = T0 + 3600_000;
+  uploader.state.youtube.blockedReason = 'quota';
+  uploader.rememberBlock('youtube');
+  await Promise.all([uploader.saveSettings(), uploader.saveSettings(), uploader.saveSettings()]);
+
+  const saved = JSON.parse(await readFile(settingsPath, 'utf8'));
+  assert.equal(saved.youtube.blockedUntil, T0 + 3600_000);
+});

@@ -9,6 +9,7 @@ import { clipQueueStatus, enqueueClip, getClipJob, publicJob } from './clipjobs.
 import { config, credentialsMissing, nothingToRun, root } from './config.js';
 import { Automation, SHORT_FILE, parseRange } from './automation.js';
 import { Feed } from './feed.js';
+import { authorized, isPublicPath } from './gate.js';
 import { acquireLock, lockMessage } from './lock.js';
 import { PLATFORMS, Uploader } from './uploader.js';
 import * as instagram from './instagram.js';
@@ -54,7 +55,70 @@ const TYPES = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
 };
+
+// TERMS.md and PRIVACY.md are the promises; these routes serve those same two
+// files rather than a copy of them, so a page and the repo cannot drift apart.
+const DOCS = {
+  '/terms': { file: 'TERMS.md', title: 'Terms' },
+  '/privacy': { file: 'PRIVACY.md', title: 'Privacy' },
+};
+
+const escapeHtml = (text) =>
+  text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+// The text exactly as written, wrapped but never reformatted. A hand-rolled
+// Markdown parser is the last thing that should stand between a reader and a
+// promise, so this renders none of it.
+async function sendDoc(res, { file, title }) {
+  let text;
+  try {
+    text = await readFile(join(root, file), 'utf8');
+  } catch {
+    res.writeHead(404).end('not found');
+    return;
+  }
+  res.writeHead(200, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-cache',
+  });
+  res.end(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root { color-scheme: dark light; }
+      body {
+        margin: 0;
+        background: #0f1115;
+        color: #e7e9ee;
+        font: 15px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      main { max-width: 82ch; margin: 0 auto; padding: 28px 16px 64px; }
+      a { color: #7aa2f7; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 18px 0 0; }
+      @media (prefers-color-scheme: light) {
+        body { background: #fff; color: #1a1a1a; }
+        a { color: #0b5fff; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a href="/">&larr; Clipping</a>
+      <pre>${escapeHtml(text)}</pre>
+    </main>
+  </body>
+</html>
+`);
+}
 
 // One copy at a time: see lock.js for what happened when there were three.
 const LOCK_PATH = join(root, 'data', 'app.lock');
@@ -198,6 +262,19 @@ async function sendShort(req, res, name, download) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${config.port}`);
 
+  // Before anything else. The page can change the streamer list, flip the
+  // upload switches and spend the uploader’s quota, so once the address is
+  // reachable the address alone cannot be what protects it.
+  if (!isPublicPath(url.pathname) && !authorized(req.headers.authorization, config.dashboardPassword)) {
+    res
+      .writeHead(401, {
+        'www-authenticate': 'Basic realm="clip dashboard", charset="UTF-8"',
+        'content-type': 'text/plain; charset=utf-8',
+      })
+      .end('Set DASHBOARD_PASSWORD in .env and sign in with it. Any username.\n');
+    return;
+  }
+
   if (url.pathname === '/api/feed') {
     // ?demo=1 renders the UI off a fixture, so the layout can be checked while
     // the category is still empty.
@@ -324,35 +401,50 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // GET /api/stats -> what the connected channels actually did.
+  // GET /api/stats -> what the connected accounts actually did.
+  //
+  // Every platform answers here, because each account page asks this one route
+  // and reads its own platform out of the reply. While only YouTube answered,
+  // the TikTok page read a missing entry as "no keys in .env" and said so to a
+  // owner whose keys were fine.
   //
   // Read-only, and behind StatsCache's refresh floor so a page left open does
   // not spend the uploader's quota. ?force=1 is for a person pressing refresh,
   // not for the page's own polling.
   if (url.pathname === '/api/stats') {
-    const keys = youtube.youtubeKeys();
-    if (!youtube.hasKeys(keys)) {
-      sendJson(res, 200, { youtube: { keys: false, connected: false } });
-      return;
+    const state = {};
+    for (const [platform, { api, keys: readKeys }] of Object.entries(SIGN_IN)) {
+      const keys = readKeys();
+      if (!api.hasKeys(keys)) {
+        state[platform] = { keys: false, connected: false };
+        continue;
+      }
+      // YouTube and TikTok keep a refresh token; Instagram keeps a 60-day
+      // user token. Either one means the owner has been through the consent.
+      const saved = await api.loadToken();
+      state[platform] = {
+        keys: true,
+        connected: Boolean(saved?.refreshToken || saved?.userToken),
+      };
     }
-    const saved = await youtube.loadToken();
-    if (!saved?.refreshToken) {
-      sendJson(res, 200, { youtube: { keys: true, connected: false } });
-      return;
+
+    if (state.youtube.connected) {
+      const keys = youtube.youtubeKeys();
+      const saved = await youtube.loadToken();
+      try {
+        const token = await youtube.accessToken(keys, saved.refreshToken);
+        Object.assign(state.youtube, await statsCache.get({ token, force: url.searchParams.has('force') }));
+      } catch (err) {
+        // Only a real auth failure means the sign-in is gone. A 5xx, a 429 or a
+        // dropped connection is the network, and offering Connect for those
+        // would send the owner to re-consent over a blip.
+        const kind = statsErrorKind(err);
+        state.youtube.connected = kind !== 'auth';
+        state.youtube.error = { kind, message: err.message };
+      }
     }
-    try {
-      const token = await youtube.accessToken(keys, saved.refreshToken);
-      const stats = await statsCache.get({ token, force: url.searchParams.has('force') });
-      sendJson(res, 200, { youtube: { keys: true, connected: true, ...stats } });
-    } catch (err) {
-      // Only a real auth failure means the sign-in is gone. A 5xx, a 429 or a
-      // dropped connection is the network, and offering Connect for those
-      // would send the owner to re-consent over a blip.
-      const kind = statsErrorKind(err);
-      sendJson(res, 200, {
-        youtube: { keys: true, connected: kind !== 'auth', error: { kind, message: err.message } },
-      });
-    }
+
+    sendJson(res, 200, state);
     return;
   }
 
@@ -437,6 +529,12 @@ const server = createServer(async (req, res) => {
       lastError: feed.lastError,
       clips: { ...clipQueueStatus(), dir: config.clipDir },
     });
+    return;
+  }
+
+  const doc = DOCS[url.pathname];
+  if (doc) {
+    await sendDoc(res, doc);
     return;
   }
 

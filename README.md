@@ -7,6 +7,11 @@ Every clipping tool answers "what's hot." Hot is where the crowd already is. A
 clipper racing two hundred people to the same forty seconds has already lost.
 The useful question is *hot and not yet flooded*, and nobody reports it.
 
+> Setting it up again on another machine, or wondering why nothing is posting?
+> **[RUNNING.md](RUNNING.md)** is the short version: what does not travel with
+> the repository, the settings you actually touch, and the platform limits that
+> no setting changes.
+
 ## The trick
 
 A native Twitch clip is a **costly** signal. Chat is free — anyone can type

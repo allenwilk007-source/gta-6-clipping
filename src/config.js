@@ -116,6 +116,9 @@ export const GAME_HASHTAGS = {
 export const config = {
   root,
   port: num(process.env.PORT, 3000),
+  // Empty means the dashboard is open, which is right on localhost and
+  // wrong the moment it is behind a tunnel. See gate.js.
+  dashboardPassword: process.env.DASHBOARD_PASSWORD || '',
   clientId: process.env.TWITCH_CLIENT_ID || '',
   clientSecret: process.env.TWITCH_CLIENT_SECRET || '',
   // Every category the feed watches and automation clips.

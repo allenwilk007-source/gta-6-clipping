@@ -67,28 +67,33 @@ function renderStats(meta, game) {
   // Without a token there are no clips to scan, and no way to know which of
   // the watched channels is actually broadcasting. Reporting either as a zero
   // would read as a measurement rather than an absence.
-  const cells = chatOnly
-    ? [
-        ['Early', meta.counts.early ?? 0],
-        ['Watched', number(meta.watchedChannels)],
-      ]
+  // Early, Fresh, Warm and Flooded are not four statistics. They are one
+  // scale — how crowded each moment already is — and the whole point of the
+  // tool. Drawn as seven equal cells alongside "clips scanned", the shape of
+  // the hour was invisible. Drawn as one run, it reads at a glance.
+  const buckets = chatOnly
+    ? [['early', 'Early', meta.counts.early ?? 0]]
     : [
-        ['Early', meta.counts.early ?? 0],
-        ['Fresh', meta.counts.fresh],
-        ['Warm', meta.counts.warm],
-        ['Flooded', meta.counts.flooded],
-        ['Clips scanned', number(meta.clipsScanned)],
-        ['Live channels', number(meta.liveChannels)],
+        ['early', 'Early', meta.counts.early ?? 0],
+        ['fresh', 'Fresh', meta.counts.fresh],
+        ['warm', 'Warm', meta.counts.warm],
+        ['flooded', 'Flooded', meta.counts.flooded],
       ];
 
-  els.stats.innerHTML = cells
-    .map(([label, value]) => `<div><b>${value}</b>${label}</div>`)
-    .join('');
+  // Everything else is how the measurement was taken, not the measurement.
+  // It is still worth showing; it is not worth the same size.
+  const context = chatOnly
+    ? [`${number(meta.watchedChannels)} watched`]
+    : [`${number(meta.clipsScanned)} clips scanned`, `${number(meta.liveChannels)} live`];
+  context.push(`${meta.windowMinutes}m window`, `chat ${chat}`);
 
-  els.stats.insertAdjacentHTML(
-    'beforeend',
-    `<div><b>${meta.windowMinutes}m</b>window · chat ${chat}</div>`,
-  );
+  els.stats.innerHTML =
+    `<div class="gauge">${buckets
+      .map(
+        ([key, label, value]) =>
+          `<div class="gauge-cell is-${key}"><b>${value ?? 0}</b><span>${label}</span></div>`,
+      )
+      .join('')}</div>` + `<div class="bar-meta">${context.join(' · ')}</div>`;
 }
 
 function buildCard(moment) {
@@ -120,22 +125,48 @@ function buildCard(moment) {
   const title = node.querySelector('.title');
   title.textContent = moment.title || moment.streamTitle || '';
 
-  const bits = [];
-  if (moment.chat?.spiking) {
-    bits.push(`<span class="hot">chat ${moment.chatZ.toFixed(1)}σ</span>`);
-  } else if (moment.chatZ > 0) {
-    bits.push(`chat ${moment.chatZ.toFixed(1)}σ`);
-  }
-  if (moment.saturation > 0) bits.push(`${moment.clipsPerMinute}/min`);
-  if (moment.viewers != null) bits.push(`${number(moment.viewers)} viewers`);
+  // This was one row of up to eight middot-separated phrases, all the same
+  // weight, so "offset estimated" said itself as loudly as the viewer count.
+  // Measurements keep the row; the caveats about how the measurement was
+  // arrived at become tags after it, where they are read second and read as
+  // qualifications rather than as more numbers.
+  const measures = [];
+  const caveats = [];
+
+  if (moment.chat?.spiking) measures.push([`chat ${moment.chatZ.toFixed(1)}σ`, 'hot']);
+  else if (moment.chatZ > 0) measures.push([`chat ${moment.chatZ.toFixed(1)}σ`]);
+  if (moment.saturation > 0) measures.push([`${moment.clipsPerMinute}/min`]);
+  if (moment.viewers != null) measures.push([`${number(moment.viewers)} viewers`]);
   // Same lie as saturation: with no API this is an absence, not a zero.
-  if (!chatOnly) bits.push(`${number(moment.clipViews)} clip views`);
-  bits.push(ago(moment.minutesSinceLastClip));
-  if (moment.firstClipper) bits.push(`first: ${moment.firstClipper}`);
-  if (moment.basis === 'created') bits.push('VOD position pending');
-  if (moment.offsetEstimated) bits.push('offset estimated');
-  if (moment.shared) bits.push('<span class="shared">whole category spiked</span>');
-  node.querySelector('.meta').innerHTML = bits.join('<span>·</span>');
+  if (!chatOnly) measures.push([`${number(moment.clipViews)} clip views`]);
+  measures.push([ago(moment.minutesSinceLastClip)]);
+  if (moment.firstClipper) measures.push([`first: ${moment.firstClipper}`]);
+
+  if (moment.basis === 'created') caveats.push(['VOD position pending']);
+  if (moment.offsetEstimated) caveats.push(['offset estimated']);
+  if (moment.shared) caveats.push(['whole category spiked', 'shared']);
+
+  // Built as nodes rather than joined into a string: a broadcaster's name goes
+  // in here, and it is theirs to choose, not ours to trust.
+  const metaNodes = [];
+  measures.forEach(([text, kind], i) => {
+    if (i) {
+      const dot = document.createElement('span');
+      dot.textContent = '·';
+      metaNodes.push(dot);
+    }
+    const cell = document.createElement('span');
+    if (kind) cell.className = kind;
+    cell.textContent = text;
+    metaNodes.push(cell);
+  });
+  for (const [text, kind] of caveats) {
+    const tag = document.createElement('span');
+    tag.className = kind ? `meta-flag ${kind}` : 'meta-flag';
+    tag.textContent = text;
+    metaNodes.push(tag);
+  }
+  node.querySelector('.meta').replaceChildren(...metaNodes);
 
   renderChatEvidence(node.querySelector('.chat-evidence'), moment);
 
@@ -583,25 +614,52 @@ async function changeAutomation(change) {
   }
 }
 
+// A channel that is not live in the category is not a problem, it is just not
+// the task. Twenty-seven of them wrapped into four rows of chips and pushed
+// the work itself off the screen, so the quiet ones fold behind a count.
+const DORMANT = new Set(['not live in category', 'not recording']);
+
+let showQuietChannels = false;
+
+function channelChip({ login, state }) {
+  const chip = document.createElement('span');
+  chip.className = `channel is-${state.replaceAll(' ', '-')}`;
+  chip.title = CHANNEL_STATES[state] || state;
+  const dot = document.createElement('i');
+  const name = document.createElement('span');
+  name.textContent = login;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.textContent = '×';
+  remove.title = `Stop automating ${login}`;
+  remove.setAttribute('aria-label', `Stop automating ${login}`);
+  remove.addEventListener('click', () => changeAutomation({ remove: login }));
+  chip.append(dot, name, remove);
+  return chip;
+}
+
 function renderChannels(view) {
-  auto.channels.replaceChildren(
-    ...view.channels.map(({ login, state }) => {
-      const chip = document.createElement('span');
-      chip.className = `channel is-${state.replaceAll(' ', '-')}`;
-      chip.title = CHANNEL_STATES[state] || state;
-      const dot = document.createElement('i');
-      const name = document.createElement('span');
-      name.textContent = login;
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.textContent = '×';
-      remove.title = `Stop automating ${login}`;
-      remove.setAttribute('aria-label', `Stop automating ${login}`);
-      remove.addEventListener('click', () => changeAutomation({ remove: login }));
-      chip.append(dot, name, remove);
-      return chip;
-    }),
-  );
+  const busy = view.channels.filter((c) => !DORMANT.has(c.state));
+  const quiet = view.channels.filter((c) => DORMANT.has(c.state));
+  const nodes = (showQuietChannels ? [...busy, ...quiet] : busy).map(channelChip);
+
+  if (quiet.length) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'channel-more';
+    more.setAttribute('aria-expanded', String(showQuietChannels));
+    more.textContent = showQuietChannels ? `Hide ${quiet.length} quiet` : `+${quiet.length} quiet`;
+    more.title = showQuietChannels
+      ? 'Hide the channels that are not live in the category'
+      : 'Channels that are not live in the category right now. They are still automated.';
+    more.addEventListener('click', () => {
+      showQuietChannels = !showQuietChannels;
+      renderChannels(view);
+    });
+    nodes.push(more);
+  }
+
+  auto.channels.replaceChildren(...nodes);
 }
 
 function statusLine(view) {
@@ -826,6 +884,42 @@ const up = {
 
 const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
+// "every ${Math.round(minutes / 60)}h" read as "every 0h" at twenty minutes
+// apart and "every 1h" at thirty-four. Say minutes while they are minutes.
+const spacingLabel = (minutes) => {
+  const m = Math.round(Number(minutes) || 0);
+  if (m < 90) return `${m} min`;
+  const hours = m / 60;
+  return `${hours % 1 ? hours.toFixed(1) : hours} h`;
+};
+
+/** A row of labelled values, built as nodes because the values are not ours. */
+function factRow(facts, notes, isError) {
+  const out = [];
+  if (facts.length) {
+    const dl = document.createElement('dl');
+    dl.className = 'facts';
+    for (const [label, value] of facts) {
+      const cell = document.createElement('div');
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      dd.textContent = value;
+      cell.append(dt, dd);
+      dl.append(cell);
+    }
+    out.push(dl);
+  }
+  if (notes.length) {
+    const p = document.createElement('p');
+    p.className = 'facts-note';
+    if (isError) p.classList.add('is-error');
+    p.textContent = notes.join(' ');
+    out.push(p);
+  }
+  return out;
+}
+
 function renderPlatform(name, state) {
   const els = up[name];
   if (!els || !state?.built) return;
@@ -834,21 +928,29 @@ function renderPlatform(name, state) {
   if (document.activeElement !== els.mode) els.mode.value = state.mode;
   els.mode.querySelector('[value="on"]').disabled = !state.connected;
 
-  const bits = [];
-  if (state.mode === 'off') bits.push('Off: nothing is uploaded.');
-  else {
-    const doing = state.mode === 'dry-run' ? 'Dry run' : state.draftsOnly ? 'Sending drafts' : 'Uploading';
-    bits.push(`${doing} · ${state.today} of ${state.perDay} today`);
-    if (state.nextAt) bits.push(`next at ${clock(state.nextAt)}${state.waitingFor ? ` (${state.waitingFor})` : ''}`);
-    bits.push(`every ${Math.round(state.spacingMinutes / 60)}h, best score first`);
+  // This was one sentence of five clauses joined by middots, every clause the
+  // same weight, so the number anyone actually wants — how many are left today
+  // — sat in the middle of prose. Numbers go in a row of labelled values;
+  // sentences stay sentences, underneath, where they do not crowd the numbers.
+  const facts = [];
+  const notes = [];
+  if (state.mode === 'off') {
+    notes.push('Nothing is uploaded while this is off.');
+  } else {
+    facts.push(['Mode', state.mode === 'dry-run' ? 'Dry run' : state.draftsOnly ? 'Drafts' : 'Uploading']);
+    facts.push(['Today', `${state.today}/${state.perDay}`]);
+    if (state.nextAt) facts.push(['Next', clock(state.nextAt)]);
+    facts.push(['Every', spacingLabel(state.spacingMinutes)]);
+    // Why it is waiting belongs next to when, not in a paragraph below.
+    if (state.waitingFor) facts.push(['Waiting on', state.waitingFor]);
     // The honest ceiling, said where the switch is rather than in a doc.
-    if (state.mode === 'on' && state.draftsOnly) bits.push('arrives as a draft — open TikTok to post it');
+    if (state.mode === 'on' && state.draftsOnly) notes.push('Each one arrives as a draft — open TikTok to post it.');
     if (state.mode === 'on' && !state.draftsOnly && state.privacy && state.privacy !== 'private') {
-      bits.push('Google keeps uploads private until its audit passes');
+      notes.push('Google keeps uploads private until its audit passes.');
     }
   }
-  if (state.lastError) bits.push(`last error: ${state.lastError}`);
-  els.status.textContent = bits.join(' · ');
+  if (state.lastError) notes.push(`Last error: ${state.lastError}`);
+  els.status.replaceChildren(...factRow(facts, notes, Boolean(state.lastError)));
   els.status.classList.toggle('is-error', Boolean(state.lastError));
 
   const posted = state.recent.map((r) => `${r.status === 'dry-run' ? 'would post' : r.status}: ${r.title || r.file}`);

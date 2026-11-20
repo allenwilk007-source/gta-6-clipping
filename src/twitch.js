@@ -206,4 +206,34 @@ export class Twitch {
     }
     return { clips, pages, truncated: pages >= maxPages && Boolean(cursor) };
   }
+
+  /**
+   * The most-watched clips of a window, which is the same endpoint read for
+   * what it actually sorts by.
+   *
+   * recentClips() above uses a window so short that the view-count ordering
+   * barely matters. Widen the window and that ordering becomes the point: page
+   * one is what the audience of the last week chose to watch. No detection, no
+   * guessing, and nothing to be wrong about.
+   */
+  async popularClips({ gameId, days = 7, pages: maxPages = 1, now = Date.now() }) {
+    const clips = [];
+    let cursor;
+    let pages = 0;
+    while (pages < maxPages) {
+      const page = await this.helix('/clips', {
+        game_id: gameId,
+        first: 100,
+        started_at: new Date(now - days * 86_400_000).toISOString(),
+        ended_at: new Date(now).toISOString(),
+        after: cursor,
+      });
+      const batch = page.data || [];
+      clips.push(...batch);
+      pages += 1;
+      cursor = page.pagination?.cursor;
+      if (!cursor || batch.length === 0) break;
+    }
+    return clips;
+  }
 }

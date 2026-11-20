@@ -303,7 +303,14 @@ export class Automation {
     // Un-downloaded shorts are deleted after SHORTS_KEEP_HOURS (retention.js).
     this.retention =
       retention ||
-      new Retention({ dir: this.dir, busy: () => feed.store?.uploadingFiles?.() || [], log });
+      new Retention({
+        dir: this.dir,
+        // Siblings of clips/ready: where shorts are set aside, and where they
+        // are rejected. Neither is read by anything, and both grew forever.
+        sideDirs: [join(this.dir, '..', 'shelved'), join(this.dir, '..', 'rejected')],
+        busy: () => feed.store?.uploadingFiles?.() || [],
+        log,
+      });
     this.timer = null;
     this.seen = null;
     this.health = { level: 'ok', message: null };
