@@ -67,28 +67,33 @@ function renderStats(meta, game) {
   // Without a token there are no clips to scan, and no way to know which of
   // the watched channels is actually broadcasting. Reporting either as a zero
   // would read as a measurement rather than an absence.
-  const cells = chatOnly
-    ? [
-        ['Early', meta.counts.early ?? 0],
-        ['Watched', number(meta.watchedChannels)],
-      ]
+  // Early, Fresh, Warm and Flooded are not four statistics. They are one
+  // scale — how crowded each moment already is — and the whole point of the
+  // tool. Drawn as seven equal cells alongside "clips scanned", the shape of
+  // the hour was invisible. Drawn as one run, it reads at a glance.
+  const buckets = chatOnly
+    ? [['early', 'Early', meta.counts.early ?? 0]]
     : [
-        ['Early', meta.counts.early ?? 0],
-        ['Fresh', meta.counts.fresh],
-        ['Warm', meta.counts.warm],
-        ['Flooded', meta.counts.flooded],
-        ['Clips scanned', number(meta.clipsScanned)],
-        ['Live channels', number(meta.liveChannels)],
+        ['early', 'Early', meta.counts.early ?? 0],
+        ['fresh', 'Fresh', meta.counts.fresh],
+        ['warm', 'Warm', meta.counts.warm],
+        ['flooded', 'Flooded', meta.counts.flooded],
       ];
 
-  els.stats.innerHTML = cells
-    .map(([label, value]) => `<div><b>${value}</b>${label}</div>`)
-    .join('');
+  // Everything else is how the measurement was taken, not the measurement.
+  // It is still worth showing; it is not worth the same size.
+  const context = chatOnly
+    ? [`${number(meta.watchedChannels)} watched`]
+    : [`${number(meta.clipsScanned)} clips scanned`, `${number(meta.liveChannels)} live`];
+  context.push(`${meta.windowMinutes}m window`, `chat ${chat}`);
 
-  els.stats.insertAdjacentHTML(
-    'beforeend',
-    `<div><b>${meta.windowMinutes}m</b>window · chat ${chat}</div>`,
-  );
+  els.stats.innerHTML =
+    `<div class="gauge">${buckets
+      .map(
+        ([key, label, value]) =>
+          `<div class="gauge-cell is-${key}"><b>${value ?? 0}</b><span>${label}</span></div>`,
+      )
+      .join('')}</div>` + `<div class="bar-meta">${context.join(' · ')}</div>`;
 }
 
 function buildCard(moment) {

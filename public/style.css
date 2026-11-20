@@ -67,18 +67,92 @@ h1 {
 
 .bar-right {
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* The four buckets are one scale, so they are drawn as one object: joined,
+   not spaced, and each carrying the colour it already means elsewhere in the
+   page. Grouping by adjacency rather than by giving each its own box. */
+.gauge {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.gauge-cell {
+  min-width: 66px;
+  padding: 5px 14px 6px;
+  text-align: center;
+}
+
+/* A hairline in the page background, so the cells read as divisions of one
+   bar rather than as four separate chips. */
+.gauge-cell + .gauge-cell {
+  border-left: 1px solid var(--bg);
+}
+
+.gauge-cell b {
+  display: block;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge-cell span {
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gauge-cell.is-early b {
+  color: var(--early);
+}
+
+.gauge-cell.is-fresh b {
+  color: var(--fresh);
+}
+
+.gauge-cell.is-warm b {
+  color: var(--warm);
+}
+
+.gauge-cell.is-flooded b {
+  color: var(--flooded);
+}
+
+/* How the measurement was taken: present, quiet, out of the way. */
+.bar-meta {
   color: var(--muted);
   font-size: 12px;
 }
 
-.bar-right b {
-  display: block;
-  color: var(--text);
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+/* On a phone the four fixed cells were wider than the screen, so the last one
+   was cut in half and the line under it ran off the edge. Give the bar the
+   width instead and let the cells divide it. */
+@media (max-width: 680px) {
+  .bar-right {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .gauge {
+    width: 100%;
+  }
+
+  .gauge-cell {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 5px 2px 6px;
+  }
+
+  .bar-meta {
+    text-align: left;
+  }
 }
 
 /* ---------- controls ---------- */
