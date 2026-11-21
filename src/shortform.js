@@ -260,6 +260,45 @@ const EMPTY_WORDS = new Set(
   ),
 );
 
+// EMPTY_WORDS above is interjections. This is the rest of the machinery of a
+// sentence: pronouns, auxiliaries, and the handful of verbs people reach for
+// when they are not saying anything in particular — do, get, go, know, think,
+// need. A line made only of these is grammatical and empty.
+//
+// Measured against what actually got posted: "What do you think?", "Let's do
+// it", "Hey, what are we doing?" and "What do you need?" are made of nothing
+// else, and each took 0-2 views. "My car is impounded" keeps car and
+// impounded; "I'm about to be a gay dancer" keeps gay and dancer, and took
+// thirty-seven.
+const HOLLOW = new Set(
+  `do does did doing done be am is are was were been being having have has had
+   get gets got getting go goes going gone went come comes coming came
+   know knows knew think thinks thought need needs needed want wants wanted
+   say says said see sees saw look looks looking take takes took give gives
+   make makes made let lets gonna wanna gotta gon can could will would should
+   you your yours we us our they them their he him his she her hers
+   me my mine here there where when how why who which what whose
+   one some any all every more most much many thing things stuff way
+   not no never nothing out up down over under back again still just
+   for from with into onto about of to in on at by as if or
+   really actually literally basically kinda sorta pretty very too also even
+   now then today tomorrow yesterday time right left good bad
+   y'all yall gonna buddy man okay alright`
+    .trim()
+    .split(/\s+/),
+);
+
+/** The words in a line that actually name something. */
+const contentWords = (text) =>
+  String(text)
+    .toLowerCase()
+    .split(/[^a-z0-9']+/)
+    .filter(Boolean)
+    .filter((word) => {
+      const bare = word.replace(/'(?:s|t|re|ll|ve|d|m)$/, '');
+      return !EMPTY_WORDS.has(word) && !EMPTY_WORDS.has(bare) && !HOLLOW.has(word) && !HOLLOW.has(bare);
+    });
+
 /**
  * The line the streamer said that best says what happened.
  *
@@ -272,15 +311,34 @@ export function pickQuote(words, { reactionAt = 25, mild = true } = {}) {
   let best = null;
   for (const sentence of sentencesFrom(words)) {
     if (sentence.end < reactionAt - 14 || sentence.start > reactionAt + 4) continue;
-    const text = sentence.text.replace(FILLER, '').replace(/[.,;:]+$/, '').trim();
+    const text = sentence.text
+      .replace(FILLER, '')
+      .replace(/[.,;:]+$/, '')
+      // The transcript splits contractions it half-heard: "y 'all", "I 'm".
+      // Joining them back is not cosmetic — it stops a mangled word counting
+      // as something the line named.
+      .replace(/\s+'/g, "'")
+      .trim();
     const tokens = text.split(/\s+/).filter(Boolean);
-    if (tokens.length < 2 || tokens.length > 12) continue;
-    const meaningful = tokens.filter((t) => !EMPTY_WORDS.has(t.toLowerCase().replace(/[^a-z']/g, ''))).length;
-    if (meaningful < 2) continue;
+    // Three words, not two. Two-word quotes off a transcript are nearly all
+    // mishearings ("Play drive", "Reach rolls"), and a two-word line is not a
+    // hook even when it is correct.
+    if (tokens.length < 3 || tokens.length > 12) continue;
+    // Two words that name something, or there is no point quoting it. This is
+    // the whole difference between "My car is impounded" and "What do you
+    // need?", both of which the old test passed.
+    const says = contentWords(text);
+    if (says.length < 2) continue;
 
     const middle = (sentence.start + sentence.end) / 2;
     let score = 1 - Math.min(1, Math.abs(middle - (reactionAt - 2)) / 16);
-    if (/[!?]$/.test(text)) score += 0.4;
+    // A shout is a reaction. A question mark is not: it used to earn the same
+    // bonus, which is how "What do you think?" kept beating the line someone
+    // actually reacted to.
+    if (/!/.test(text)) score += 0.45;
+    // More said, better said — with a ceiling, so a rambling sentence does not
+    // win on length alone.
+    score += Math.min(says.length, 4) * 0.15;
     if (tokens.length >= 3 && tokens.length <= 8) score += 0.2;
     if (!best || score > best.score) best = { text, score };
   }
