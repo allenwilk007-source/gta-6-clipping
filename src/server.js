@@ -428,6 +428,14 @@ const server = createServer(async (req, res) => {
       };
     }
 
+    // TikTok's name comes off the kept token, not off the network: it was
+    // read once when the owner signed in. A stats poll every few seconds must
+    // not spend a TikTok call to re-read a name that cannot change under it.
+    if (state.tiktok.connected) {
+      const saved = await tiktok.loadToken();
+      if (saved?.account) state.tiktok.channel = saved.account;
+    }
+
     if (state.youtube.connected) {
       const keys = youtube.youtubeKeys();
       const saved = await youtube.loadToken();
@@ -571,6 +579,11 @@ server.listen(config.port, async () => {
   }
   automation.start();
   await uploader.load();
+  // A sign-in made before this code existed has no name kept with it. Fill it
+  // in once, here, rather than on a request: this runs before the uploader is
+  // started, so the refresh it needs cannot race an upload's own refresh and
+  // strand the rotated token.
+  await nameTikTok();
   uploader.start();
   console.log(
     `  Auto upload: ${PLATFORMS.map((p) => `${p} is ${uploader.settings[p].mode}`).join(', ')}` +
@@ -581,6 +594,27 @@ server.listen(config.port, async () => {
       `${automation.settings.channels.length} channel(s) - switch it in the page.`,
   );
 });
+
+/**
+ * Put a name on an older TikTok sign-in, once per run.
+ *
+ * Nothing depends on it, so every failure is a log line and no more: being
+ * unable to say whose account it is must never stop the thing posting to it.
+ */
+async function nameTikTok() {
+  const keys = tiktok.tiktokKeys();
+  if (!tiktok.hasKeys(keys)) return;
+  const saved = await tiktok.loadToken();
+  if (!saved?.refreshToken || saved.account) return;
+  try {
+    const token = await tiktok.accessTokenFor(keys);
+    const account = tiktok.profileAccount(await tiktok.fetchProfile(token));
+    await tiktok.saveToken({ ...(await tiktok.loadToken()), account });
+    console.log(`  TikTok is connected as ${account.displayName || '(no display name)'}.`);
+  } catch (err) {
+    console.log(`  TikTok did not say whose account this is: ${err.message}`);
+  }
+}
 
 const shutdown = () => {
   uploader.stop();
