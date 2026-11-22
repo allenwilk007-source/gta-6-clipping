@@ -57,12 +57,36 @@ function notice(title, html, isError = false) {
   els.feed.append(box);
 }
 
+/**
+ * How loud chat got, said the way a person would say it.
+ *
+ * The number underneath is a z-score: how far above this channel's OWN normal
+ * the last minute ran. That is the right measure and the wrong label — "38σ"
+ * is a reading off an instrument, and the page is not an instrument. The
+ * exact figure stays, as the title, for anyone who wants it.
+ */
+const LOUDNESS = [
+  [8, 'chat erupted'],
+  [4, 'chat spiked'],
+  [2, 'chat busy'],
+  [0, 'chat lifting'],
+];
+
+const loudness = (z) => (LOUDNESS.find(([floor]) => z >= floor) || LOUDNESS.at(-1))[1];
+
+const loudnessTitle = (z) => `${z.toFixed(1)}σ above this channel's own normal`;
+
 function renderStats(meta, game) {
   els.game.textContent = game ? game.name : 'no category resolved';
 
-  const chat = meta.chat?.enabled
-    ? `${meta.chat.connectedShards}/${meta.chat.shards} sockets · ${meta.chat.channels} ch`
-    : 'off';
+  // "5/5 sockets" is true and tells a person nothing: a socket is this
+  // program's business, not theirs. What they can act on is whether chat is
+  // being heard at all, and the count only matters while some of it is not.
+  const chat = !meta.chat?.enabled
+    ? 'chat off'
+    : meta.chat.connectedShards >= meta.chat.shards
+      ? `chat on, ${number(meta.chat.channels)} channels`
+      : `chat reconnecting (${meta.chat.connectedShards}/${meta.chat.shards})`;
 
   // Without a token there are no clips to scan, and no way to know which of
   // the watched channels is actually broadcasting. Reporting either as a zero
@@ -85,7 +109,7 @@ function renderStats(meta, game) {
   const context = chatOnly
     ? [`${number(meta.watchedChannels)} watched`]
     : [`${number(meta.clipsScanned)} clips scanned`, `${number(meta.liveChannels)} live`];
-  context.push(`${meta.windowMinutes}m window`, `chat ${chat}`);
+  context.push(`${meta.windowMinutes}m window`, chat);
 
   els.stats.innerHTML =
     `<div class="gauge">${buckets
@@ -133,8 +157,8 @@ function buildCard(moment) {
   const measures = [];
   const caveats = [];
 
-  if (moment.chat?.spiking) measures.push([`chat ${moment.chatZ.toFixed(1)}σ`, 'hot']);
-  else if (moment.chatZ > 0) measures.push([`chat ${moment.chatZ.toFixed(1)}σ`]);
+  if (moment.chat?.spiking) measures.push([loudness(moment.chatZ), 'hot', loudnessTitle(moment.chatZ)]);
+  else if (moment.chatZ > 0) measures.push([loudness(moment.chatZ), null, loudnessTitle(moment.chatZ)]);
   if (moment.saturation > 0) measures.push([`${moment.clipsPerMinute}/min`]);
   if (moment.viewers != null) measures.push([`${number(moment.viewers)} viewers`]);
   // Same lie as saturation: with no API this is an absence, not a zero.
@@ -149,7 +173,7 @@ function buildCard(moment) {
   // Built as nodes rather than joined into a string: a broadcaster's name goes
   // in here, and it is theirs to choose, not ours to trust.
   const metaNodes = [];
-  measures.forEach(([text, kind], i) => {
+  measures.forEach(([text, kind, hint], i) => {
     if (i) {
       const dot = document.createElement('span');
       dot.textContent = '·';
@@ -157,6 +181,7 @@ function buildCard(moment) {
     }
     const cell = document.createElement('span');
     if (kind) cell.className = kind;
+    if (hint) cell.title = hint;
     cell.textContent = text;
     metaNodes.push(cell);
   });
