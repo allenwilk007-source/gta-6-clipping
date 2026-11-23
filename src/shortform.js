@@ -292,6 +292,12 @@ const HOLLOW = new Set(
 const contentWords = (text) =>
   String(text)
     .toLowerCase()
+    // A curly apostrophe is not in the class below, so "it’s" split into "it"
+    // and "s" — and "s" is in neither word list, so it counted as a word that
+    // named something. Two of those and a line made of nothing but machinery
+    // passed the one test this function exists to apply. Transcripts and
+    // Twitch titles are full of them.
+    .replace(/[‘’ʼ]/g, "'")
     .split(/[^a-z0-9']+/)
     .filter(Boolean)
     .filter((word) => {
