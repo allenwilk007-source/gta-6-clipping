@@ -1,0 +1,73 @@
+# Licence
+
+Copyright (c) 2026 the author of clip dashboard. All rights reserved.
+
+This is **not** open-source software. The source is provided to you because
+the software cannot work without it: it runs on your own computer, against
+your own platform credentials, and you have to be able to read and configure
+what you are running. Being able to read it is the point. Being able to pass
+it on is not.
+
+## What one licence lets you do
+
+A licence covers **one operator**: one person, publishing to accounts that
+person owns or is authorised to act for.
+
+You may:
+
+- run it on any computer you control, as many as you like, for that one
+  operator's accounts;
+- read, audit and modify your copy, for your own use;
+- keep running the version you were given, for as long as you like, including
+  after the licence ends by expiry rather than by breach.
+
+## What it does not let you do
+
+You may not:
+
+- give, sell, sub-licence, rent, publish or otherwise pass the software or any
+  part of it to anyone else, modified or not;
+- run it on behalf of other people as a service, agency offering, or managed
+  posting arrangement for third-party accounts, unless your licence says in
+  writing that it covers that;
+- remove or defeat the credit line and source link the software writes beside
+  every clip;
+- present it as your own work, or re-licence it.
+
+One licence is one operator. An agency posting for a roster of clients needs a
+licence that says so.
+
+## The footage is not yours and this licence does not make it yours
+
+The software cuts short videos out of **other people's** public broadcasts. It
+acquires no rights in that footage and can grant you none. Everything in the
+"The operator is responsible for what they publish" section of `TERMS.md`
+applies to you, and nothing in this licence narrows it. What you publish, and
+any claim arising from it, is yours.
+
+## No warranty
+
+Provided **as is, without warranty of any kind**, express or implied,
+including merchantability, fitness for a particular purpose and
+non-infringement. The author is not liable for any claim, damages or other
+liability arising from the software or its use.
+
+It depends on third-party APIs — Twitch's, YouTube's, TikTok's, Meta's — that
+can change, throttle or withdraw access at any time, and on each platform
+granting you your own developer access. None of that is promised here, and no
+refund is implied by any of it failing.
+
+## If you breach this
+
+The licence ends. You stop using the software and delete your copies. Nothing
+you published before that point is clawed back.
+
+## Governing law
+
+To be set in the signed agreement that accompanies this file.
+
+---
+
+**This file has not been reviewed by a lawyer.** It states the intent plainly
+and in order, which is what a lawyer needs in front of them, but it is not a
+substitute for one. Have it reviewed before you take money for a copy.

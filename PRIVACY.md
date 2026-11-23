@@ -1,10 +1,10 @@
 # Privacy Policy
 
-**Last updated: 18 November 2026**
+**Last updated: 23 November 2026**
 
-This policy covers **clip dashboard**, a personal tool that runs on its
-operator's own computer. It is not a hosted service, it has no servers, and it
-has no users other than the person running it.
+This policy covers **clip dashboard**, licensed software that runs on its
+operator's own computer. It is not a hosted service, it has no servers, and no
+copy has any users other than the operator running it.
 
 If you are reading this because a platform's consent screen linked you here:
 the application you are about to authorise is the operator's own copy, running
@@ -12,10 +12,16 @@ locally, requesting access to the operator's own account.
 
 ## Who runs this
 
-One person, on one computer. There is no company, no team and no
-infrastructure. The software is open source and the code that does everything
-described below can be read at
-<https://github.com/allenwilk007-source/clipper_tvv>.
+You do. Each copy is run by its own operator, on their own computer, against
+their own platform credentials. There is no shared infrastructure and no
+account anybody else signs into. The author of the software operates nothing,
+hosts nothing, and receives none of the data described below — not the clips,
+not the tokens, not the statistics, not a log that you ran it.
+
+Everything this file claims is checkable rather than merely promised: the
+source for every behaviour described below is handed to each licensee and can
+be read and audited. It is licensed rather than public, so the reader is the
+operator instead of anyone at all.
 
 ## What it accesses, and why
 

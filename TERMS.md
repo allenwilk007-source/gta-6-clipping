@@ -1,10 +1,17 @@
 # Terms of Service
 
-**Last updated: 18 November 2026**
+**Last updated: 23 November 2026**
 
-**clip dashboard** is a personal, open-source tool that runs on its operator's
-own computer. It is not a hosted service and has no users other than the person
-running it. These terms describe the basis on which it is provided.
+**clip dashboard** is licensed software that runs on its operator's own
+computer. It is not a hosted service: there is no server anybody else logs
+into, and each copy has no users other than the operator running it. The source
+is given to every licensee, because the thing cannot be configured or audited
+without it, but it is not open source — see `LICENSE`.
+
+These terms describe the basis on which it is provided. They sit alongside
+`LICENSE`, which says what a licence covers; where the two speak to the same
+thing, `LICENSE` governs what you may do with the software and this file
+governs what you are responsible for when you use it.
 
 ## What it does
 
@@ -65,6 +72,13 @@ is documented in `docs/detection-plan.md`.
 Do not use this software to harass anyone, to republish content you have no
 right to, to impersonate anyone, or to evade a platform's enforcement. If a
 platform tells you to stop, stop.
+
+## One copy, one operator
+
+A licence covers one operator and the accounts that operator owns or is
+authorised to act for. Running it for other people's accounts as a service or
+an agency offering, or passing a copy to anyone else, needs a licence that says
+so in writing. `LICENSE` has the detail.
 
 ## Changes
 

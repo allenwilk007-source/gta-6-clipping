@@ -39,11 +39,18 @@ in again, and the sign-ins have to be redone on a new machine anyway.
 You need **Node 22 or newer** (`package.json` asks for `>=22`; this machine
 runs 24), **ffmpeg** on PATH, and **yt-dlp** on PATH.
 
+`npm run doctor` checks all three, and the rest of the setup besides — the
+keys, the folders, the port, and whether the dashboard is asking for a
+password. It prints what is missing and where to get it, names no secret by
+value, and exits non-zero if something will actually stop it running. Run it
+first on a new machine and after any change to `.env`.
+
 ```bash
 git clone https://github.com/allenwilk007-source/gta-6-clipping.git
 cd gta-6-clipping
 # put .env here
-npm test          # 444 tests, no network needed
+npm run doctor    # is this machine ready? says what is missing and where to get it
+npm test          # 501 tests, no network needed
 npm start         # http://localhost:3000
 ```
 
