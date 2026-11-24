@@ -109,49 +109,90 @@
       <p class="auto-error" id="auto-error" hidden></p>
       <p class="auto-status" id="auto-status"></p>
       <div class="uploads" id="uploads" hidden>
-        <strong class="uploads-title">Auto upload</strong>
-        <div class="uploads-row">
-          <span class="uploads-platform">YouTube</span>
-          <a class="uploads-connect" id="yt-connect" href="/auth/youtube">Connect</a>
-          <label class="uploads-mode"
-            >Mode
-            <select id="yt-mode">
-              <option value="off">Off</option>
-              <option value="dry-run">Dry run (log only)</option>
-              <option value="on">On: upload</option>
-            </select>
-          </label>
+        <div class="uploads-head">
+          <strong class="uploads-title">Auto upload</strong>
+          <p class="uploads-sub">
+            Where each finished short goes. One card per account: whether it is
+            connected, what it is allowed to do, and what it has done so far.
+          </p>
         </div>
-        <p class="uploads-status" id="yt-status"></p>
-        <ol class="uploads-list" id="yt-next"></ol>
-        <div class="uploads-row">
-          <span class="uploads-platform">TikTok</span>
-          <a class="uploads-connect" id="tt-connect" href="/auth/tiktok">Connect</a>
-          <label class="uploads-mode"
-            >Mode
-            <select id="tt-mode">
-              <option value="off">Off</option>
-              <option value="dry-run">Dry run (log only)</option>
-              <option value="on">On: send drafts</option>
-            </select>
-          </label>
+        <div class="up-grid">
+          <section class="up-card" id="up-youtube">
+            <div class="up-top">
+              <h3 class="up-name">YouTube</h3>
+              <span class="up-pill" id="yt-pill">
+                <span class="up-dot" aria-hidden="true"></span>
+                <span class="up-pill-text">Checking…</span>
+              </span>
+            </div>
+            <p class="up-account" id="yt-account" hidden></p>
+            <div class="up-controls">
+              <label class="up-mode">
+                <span>Mode</span>
+                <select id="yt-mode">
+                  <option value="off">Off</option>
+                  <option value="dry-run">Dry run (log only)</option>
+                  <option value="on">On: upload</option>
+                </select>
+              </label>
+              <a class="up-connect" id="yt-connect" href="/auth/youtube">Connect</a>
+            </div>
+            <dl class="up-stats" id="yt-stats"></dl>
+            <p class="uploads-status" id="yt-status"></p>
+            <ol class="uploads-list" id="yt-next"></ol>
+            <a class="up-more" href="/youtube.html">Open YouTube stats</a>
+          </section>
+          <section class="up-card" id="up-tiktok">
+            <div class="up-top">
+              <h3 class="up-name">TikTok</h3>
+              <span class="up-pill" id="tt-pill">
+                <span class="up-dot" aria-hidden="true"></span>
+                <span class="up-pill-text">Checking…</span>
+              </span>
+            </div>
+            <p class="up-account" id="tt-account" hidden></p>
+            <div class="up-controls">
+              <label class="up-mode">
+                <span>Mode</span>
+                <select id="tt-mode">
+                  <option value="off">Off</option>
+                  <option value="dry-run">Dry run (log only)</option>
+                  <option value="on">On: send drafts</option>
+                </select>
+              </label>
+              <a class="up-connect" id="tt-connect" href="/auth/tiktok">Connect</a>
+            </div>
+            <dl class="up-stats" id="tt-stats"></dl>
+            <p class="uploads-status" id="tt-status"></p>
+            <ol class="uploads-list" id="tt-next"></ol>
+            <a class="up-more" href="/tiktok.html">Open TikTok stats</a>
+          </section>
+          <section class="up-card" id="up-instagram">
+            <div class="up-top">
+              <h3 class="up-name">Instagram</h3>
+              <span class="up-pill" id="ig-pill">
+                <span class="up-dot" aria-hidden="true"></span>
+                <span class="up-pill-text">Checking…</span>
+              </span>
+            </div>
+            <p class="up-account" id="ig-account" hidden></p>
+            <div class="up-controls">
+              <label class="up-mode">
+                <span>Mode</span>
+                <select id="ig-mode">
+                  <option value="off">Off</option>
+                  <option value="dry-run">Dry run (log only)</option>
+                  <option value="on">On: upload</option>
+                </select>
+              </label>
+              <a class="up-connect" id="ig-connect" href="/auth/instagram">Connect</a>
+            </div>
+            <dl class="up-stats" id="ig-stats"></dl>
+            <p class="uploads-status" id="ig-status"></p>
+            <ol class="uploads-list" id="ig-next"></ol>
+            <a class="up-more" href="/instagram.html">Open Instagram stats</a>
+          </section>
         </div>
-        <p class="uploads-status" id="tt-status"></p>
-        <ol class="uploads-list" id="tt-next"></ol>
-        <div class="uploads-row">
-          <span class="uploads-platform">Instagram</span>
-          <a class="uploads-connect" id="ig-connect" href="/auth/instagram">Connect</a>
-          <label class="uploads-mode"
-            >Mode
-            <select id="ig-mode">
-              <option value="off">Off</option>
-              <option value="dry-run">Dry run (log only)</option>
-              <option value="on">On: upload</option>
-            </select>
-          </label>
-        </div>
-        <p class="uploads-status" id="ig-status"></p>
-        <ol class="uploads-list" id="ig-next"></ol>
       </div>
       <div class="shorts" id="shorts"></div>
     </section>

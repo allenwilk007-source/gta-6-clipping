@@ -887,27 +887,29 @@ auto.form.addEventListener('submit', async (event) => {
 
 const up = {
   box: document.getElementById('uploads'),
-  youtube: {
-    connect: document.getElementById('yt-connect'),
-    mode: document.getElementById('yt-mode'),
-    status: document.getElementById('yt-status'),
-    next: document.getElementById('yt-next'),
-  },
-  tiktok: {
-    connect: document.getElementById('tt-connect'),
-    mode: document.getElementById('tt-mode'),
-    status: document.getElementById('tt-status'),
-    next: document.getElementById('tt-next'),
-  },
-  instagram: {
-    connect: document.getElementById('ig-connect'),
-    mode: document.getElementById('ig-mode'),
-    status: document.getElementById('ig-status'),
-    next: document.getElementById('ig-next'),
-  },
+  youtube: platformEls('yt', 'youtube'),
+  tiktok: platformEls('tt', 'tiktok'),
+  instagram: platformEls('ig', 'instagram'),
 };
 
+function platformEls(prefix, name) {
+  const pill = document.getElementById(`${prefix}-pill`);
+  return {
+    card: document.getElementById(`up-${name}`),
+    pill,
+    pillText: pill.querySelector('.up-pill-text'),
+    account: document.getElementById(`${prefix}-account`),
+    connect: document.getElementById(`${prefix}-connect`),
+    mode: document.getElementById(`${prefix}-mode`),
+    stats: document.getElementById(`${prefix}-stats`),
+    status: document.getElementById(`${prefix}-status`),
+    next: document.getElementById(`${prefix}-next`),
+  };
+}
+
 const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+const count = (n) => (Number(n) || 0).toLocaleString();
 
 // "every ${Math.round(minutes / 60)}h" read as "every 0h" at twenty minutes
 // apart and "every 1h" at thirty-four. Say minutes while they are minutes.
@@ -918,70 +920,81 @@ const spacingLabel = (minutes) => {
   return `${hours % 1 ? hours.toFixed(1) : hours} h`;
 };
 
-/** A row of labelled values, built as nodes because the values are not ours. */
-function factRow(facts, notes, isError) {
+// The server names the reason in its own terms, and those terms do not survive
+// being dropped into a sentence: 'Waiting on today's 1 are done.' An unknown
+// reason still gets through verbatim rather than being swallowed.
+const waitingNote = (why) => {
+  if (why === 'spacing') return 'Waiting for the gap between posts to pass.';
+  if (/are done$/.test(why)) return "Today's allowance is used up.";
+  return `Waiting on ${why}.`;
+};
+
+/** A grid of labelled numbers, built as nodes because the values are not ours. */
+function statGrid(target, cells) {
   const out = [];
-  if (facts.length) {
-    const dl = document.createElement('dl');
-    dl.className = 'facts';
-    for (const [label, value] of facts) {
-      const cell = document.createElement('div');
-      const dt = document.createElement('dt');
-      dt.textContent = label;
-      const dd = document.createElement('dd');
-      dd.textContent = value;
-      cell.append(dt, dd);
-      dl.append(cell);
-    }
-    out.push(dl);
+  for (const [label, value, mod] of cells) {
+    const cell = document.createElement('div');
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    if (mod) dd.className = mod;
+    cell.append(dt, dd);
+    out.push(cell);
   }
-  if (notes.length) {
-    const p = document.createElement('p');
-    p.className = 'facts-note';
-    if (isError) p.classList.add('is-error');
-    p.textContent = notes.join(' ');
-    out.push(p);
-  }
-  return out;
+  target.replaceChildren(...out);
 }
 
 function renderPlatform(name, state) {
   const els = up[name];
   if (!els || !state?.built) return;
-  els.connect.textContent = !state.keys ? 'Needs keys in .env' : state.connected ? 'Connected · reconnect' : 'Connect';
+
+  // Three states, said in a colour and a shape before they are said in a word:
+  // live, signed out, never set up.
+  const where = !state.keys ? 'missing' : state.connected ? 'on' : 'off';
+  els.pill.className = `up-pill is-${where}`;
+  els.pillText.textContent = where === 'on' ? 'Connected' : where === 'off' ? 'Not connected' : 'No keys yet';
+  els.card.classList.toggle('is-missing', where === 'missing');
+
+  els.connect.textContent = where === 'on' ? 'Reconnect' : where === 'off' ? 'Connect' : 'Needs keys in .env';
   els.connect.toggleAttribute('aria-disabled', !state.keys);
+
   if (document.activeElement !== els.mode) els.mode.value = state.mode;
   els.mode.querySelector('[value="on"]').disabled = !state.connected;
 
-  // This was one sentence of five clauses joined by middots, every clause the
-  // same weight, so the number anyone actually wants — how many are left today
-  // — sat in the middle of prose. Numbers go in a row of labelled values;
-  // sentences stay sentences, underneath, where they do not crowd the numbers.
-  const facts = [];
+  // The select above already says what the mode is, so the grid holds only
+  // numbers: what today allows, when the next one goes, and the record. The
+  // lifetime count is the one figure that separates a first bad day from a
+  // long bad run, and the panel had no way to show it.
+  const cells = [];
+  if (state.mode !== 'off') {
+    cells.push(['Today', `${state.today}/${state.perDay}`]);
+    if (state.nextAt) cells.push(['Next', clock(state.nextAt)]);
+    cells.push(['Every', spacingLabel(state.spacingMinutes)]);
+  }
+  const life = state.lifetime || { done: 0, failed: 0 };
+  cells.push(['Posted', count(life.done)]);
+  if (life.failed) cells.push(['Failed', count(life.failed), 'is-bad']);
+  statGrid(els.stats, cells);
+
   const notes = [];
   if (state.mode === 'off') {
     notes.push('Nothing is uploaded while this is off.');
   } else {
-    facts.push(['Mode', state.mode === 'dry-run' ? 'Dry run' : state.draftsOnly ? 'Drafts' : 'Uploading']);
-    facts.push(['Today', `${state.today}/${state.perDay}`]);
-    if (state.nextAt) facts.push(['Next', clock(state.nextAt)]);
-    facts.push(['Every', spacingLabel(state.spacingMinutes)]);
-    // Why it is waiting belongs next to when, not in a paragraph below.
-    if (state.waitingFor) facts.push(['Waiting on', state.waitingFor]);
-    // The honest ceiling, said where the switch is rather than in a doc.
+    if (state.waitingFor) notes.push(waitingNote(state.waitingFor));
     if (state.mode === 'on' && state.draftsOnly) notes.push('Each one arrives as a draft — open TikTok to post it.');
     if (state.mode === 'on' && !state.draftsOnly && state.privacy && state.privacy !== 'private') {
       notes.push('Google keeps uploads private until its audit passes.');
     }
   }
   if (state.lastError) notes.push(`Last error: ${state.lastError}`);
-  els.status.replaceChildren(...factRow(facts, notes, Boolean(state.lastError)));
+  els.status.textContent = notes.join(' ');
   els.status.classList.toggle('is-error', Boolean(state.lastError));
 
   const posted = state.recent.map((r) => `${r.status === 'dry-run' ? 'would post' : r.status}: ${r.title || r.file}`);
   const queued = state.next.map((c) => `next (${c.score}): ${c.title}`);
   els.next.replaceChildren(
-    ...[...queued.slice(0, 3), ...posted.slice(0, 3)].map((text) => {
+    ...[...queued.slice(0, 2), ...posted.slice(0, 3)].map((text) => {
       const li = document.createElement('li');
       li.textContent = text;
       li.title = text;
@@ -1019,10 +1032,60 @@ for (const platform of UPLOAD_PLATFORMS) {
   up[platform].mode.addEventListener('change', () => pollUploads({ platform, mode: up[platform].mode.value }));
 }
 
+// --- the accounts themselves ---------------------------------------------
+//
+// /api/uploads says what this tool is doing. This says what the account looks
+// like from the platform's own side, which is a different question and the
+// one an owner asks when a card says "Connected" and they want to know what
+// that connection is worth.
+//
+// Only YouTube answers with numbers. TikTok hands back the handle it stored
+// at sign-in and nothing else, and Instagram is not connected at all — so
+// each card prints what its platform actually tells us and stays quiet
+// otherwise, rather than showing a zero that reads as a failure.
+//
+// Polled far slower than the panel above it: the server keeps this behind a
+// refresh floor so an open page cannot spend the uploader's quota, and a
+// subscriber count does not move in five seconds.
+const STATS_REFRESH_MS = 120_000;
+
+function renderAccount(name, state) {
+  const els = up[name];
+  if (!els) return;
+  // TikTok stores the account as a name, YouTube as a channel object.
+  const channel = typeof state?.channel === 'string' ? { title: state.channel } : state?.channel;
+  const parts = [];
+  if (channel?.title) parts.push(channel.title);
+
+  const subs = Number(channel?.subscribers ?? channel?.followers);
+  if (!channel?.subscribersHidden && Number.isFinite(subs)) {
+    const noun = name === 'youtube' ? 'subscriber' : 'follower';
+    parts.push(`${count(subs)} ${noun}${subs === 1 ? '' : 's'}`);
+  }
+  const views = Number(channel?.views);
+  if (Number.isFinite(views)) parts.push(`${count(views)} views`);
+
+  els.account.textContent = parts.join(' · ');
+  els.account.hidden = parts.length === 0;
+}
+
+async function pollStats() {
+  try {
+    const res = await fetch('/api/stats');
+    if (!res.ok) return;
+    const body = await res.json();
+    for (const name of UPLOAD_PLATFORMS) renderAccount(name, body[name]);
+  } catch {
+    /* the account line is an extra: the panel above it stands without it */
+  }
+}
+
 // ?demo=1 renders a fixture feed, and automation would act on the real one.
 if (!new URLSearchParams(location.search).has('demo')) {
   pollAutomation();
   setInterval(pollAutomation, AUTO_REFRESH_MS);
   pollUploads();
   setInterval(pollUploads, AUTO_REFRESH_MS);
+  pollStats();
+  setInterval(pollStats, STATS_REFRESH_MS);
 }
