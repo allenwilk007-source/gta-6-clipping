@@ -871,11 +871,69 @@ select {
   font-weight: 600;
 }
 
+/* Two lists, side by side on a desktop and stacked on a phone. They are the
+   same kind of thing - a set you add to and take from - so they are the same
+   control twice rather than two inventions. */
+.picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px 22px;
+  margin: 14px 0 4px;
+  padding: 14px 0 2px;
+  border-top: 1px solid var(--line);
+}
+
+.pick { min-width: 0; }
+
+.pick-head {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pick-note {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* A category has no live-or-not state, so it has no dot: the same chip as a
+   channel, minus the thing that would be a lie on it. */
+.game {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  font-size: 13px;
+}
+
+.game button {
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.game button:hover { color: var(--danger); }
+
+.game button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
 .auto-channels {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 14px 0 10px;
+  margin: 10px 0;
+  min-height: 27px;
 }
 
 .channel {

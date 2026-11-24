@@ -51,6 +51,20 @@ export const MAX_CHANNELS = 100;
 // the list, or every live channel in the games.
 export const SCOPES = ['channels', 'category'];
 
+export const MAX_GAMES = 10;
+
+/**
+ * A Twitch category as a person types it.
+ *
+ * Unlike a channel login this is NOT lowercased: it is shown back to them and
+ * resolved against Twitch by name, and "Grand Theft Auto VI" is not the same
+ * string as "grand theft auto vi" to anybody reading it.
+ */
+export function normalizeGame(raw) {
+  const name = String(raw ?? '').replace(/\s+/g, ' ').trim();
+  return name.length > 0 && name.length <= 80 ? name : '';
+}
+
 /** A channel login from whatever gets pasted: "xqc", "@xQc", or a twitch.tv link. */
 export function normalizeLogin(raw) {
   let text = String(raw ?? '').trim().toLowerCase();
@@ -64,9 +78,16 @@ export function sanitizeSettings(raw, fallback) {
   const channels = Array.isArray(raw?.channels)
     ? [...new Set(raw.channels.map(normalizeLogin).filter(Boolean))].slice(0, MAX_CHANNELS)
     : [...fallback.channels];
+  const games = Array.isArray(raw?.games)
+    ? [...new Set(raw.games.map(normalizeGame).filter(Boolean))].slice(0, MAX_GAMES)
+    : [...(fallback.games || [])];
   return {
     enabled: typeof raw?.enabled === 'boolean' ? raw.enabled : fallback.enabled,
     channels,
+    // An empty list would mean "every category on Twitch", which is not a thing
+    // anybody wants to reach by deleting entries one at a time, so a saved file
+    // with none falls back to the configured ones.
+    games: games.length ? games : [...(fallback.games || [])],
     music: typeof raw?.music === 'boolean' ? raw.music : Boolean(fallback.music),
     scope: SCOPES.includes(raw?.scope) ? raw.scope : fallback.scope || 'channels',
   };
@@ -88,8 +109,8 @@ function saveSettings(path, settings) {
 }
 
 /** One change from the panel, applied to the settings. Throws a readable error on bad input. */
-export function applyChange(settings, { enabled, add, remove, music, scope } = {}) {
-  const next = { ...settings, channels: [...settings.channels] };
+export function applyChange(settings, { enabled, add, remove, music, scope, addGame, removeGame } = {}) {
+  const next = { ...settings, channels: [...settings.channels], games: [...(settings.games || [])] };
 
   if (enabled !== undefined) {
     if (typeof enabled !== 'boolean') throw new Error('enabled must be true or false');
@@ -114,6 +135,22 @@ export function applyChange(settings, { enabled, add, remove, music, scope } = {
   if (remove !== undefined) {
     const login = normalizeLogin(remove);
     next.channels = next.channels.filter((channel) => channel !== login);
+  }
+  if (addGame !== undefined) {
+    const name = normalizeGame(addGame);
+    if (!name) throw new Error(`"${String(addGame).slice(0, 40)}" is not a category name`);
+    if (!next.games.some((game) => game.toLowerCase() === name.toLowerCase())) {
+      if (next.games.length >= MAX_GAMES) throw new Error(`at most ${MAX_GAMES} games`);
+      next.games.push(name);
+    }
+  }
+  if (removeGame !== undefined) {
+    const name = normalizeGame(removeGame).toLowerCase();
+    const left = next.games.filter((game) => game.toLowerCase() !== name);
+    // Taking the last one away would leave the collector with no category to
+    // watch at all, which reads as a bug rather than as a setting.
+    if (!left.length) throw new Error('keep at least one game');
+    next.games = left;
   }
   return next;
 }
@@ -286,6 +323,7 @@ export class Automation {
       // re-encoding the moment it is run. AUTOCLIP=on starts it on.
       enabled: env.AUTOCLIP === 'on',
       channels: [...(feed.watchChannels || [])],
+      games: [...config.games],
       music: env.SHORTS_MUSIC === 'on',
       scope: 'channels',
     });
@@ -347,6 +385,7 @@ export class Automation {
   applyToClipper() {
     const everywhere = this.settings.scope === 'category' && this.feed.chatOnly === false;
     this.clipper.setChannels(everywhere ? [] : this.settings.channels);
+    this.clipper.setGames?.(this.settings.games);
     this.clipper.setMusic?.(this.settings.music);
   }
 
@@ -425,6 +464,7 @@ export class Automation {
   update(change = {}) {
     const next = applyChange(this.settings, change);
     const channelsChanged = next.channels.join() !== this.settings.channels.join();
+    const gamesChanged = next.games.join() !== (this.settings.games || []).join();
     this.settings = next;
     saveSettings(this.path, next);
 
@@ -435,6 +475,13 @@ export class Automation {
       // category, and there the list only decides what automation cuts.
       if (this.feed.chatOnly && this.feed.started) this.feed.setWatchList(next.channels);
       else this.feed.watchChannels = [...next.channels];
+    }
+    if (gamesChanged) {
+      // The feed resolved these names to Twitch category ids once at startup and
+      // then short-circuits, so without this it keeps polling the old ids while
+      // the panel shows the new names.
+      this.log(`autocollect: clipping ${next.games.join(' + ')}`);
+      Promise.resolve(this.feed.retarget?.(next.games)).catch((err) => this.log(`autocollect: ${err.message}`));
     }
     if (change.enabled !== undefined) this.log(`autocollect: automation ${next.enabled ? 'on' : 'off'}`);
     if (change.music !== undefined) this.log(`autocollect: background music ${next.music ? 'on' : 'off'}`);
@@ -457,7 +504,7 @@ export class Automation {
       enabled: this.settings.enabled,
       mode: this.feed.chatOnly ? 'chat-only' : 'full',
       scope: this.settings.scope,
-      games: [...config.games],
+      games: [...this.settings.games],
       music: this.settings.music,
       musicTracks: (await listTracks(musicDir)).length,
       musicDir: relative(config.root, musicDir) || musicDir,

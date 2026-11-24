@@ -288,6 +288,10 @@ export class AutoClipper {
     this.cfg = { ...this.cfg, channels: [...channels] };
   }
 
+  setGames(games = []) {
+    this.cfg = { ...this.cfg, games: [...games] };
+  }
+
   /** Remember what earlier runs cut, so a restart does not cut it again. */
   load() {
     if (!this.store) {

@@ -79,8 +79,46 @@
           <span class="switch-label" id="auto-enabled-label">Off</span>
         </label>
       </div>
+      <!--
+        What and who, side by side and both editable. The category list used to
+        be a sentence printed from the environment: changing what this clipped
+        meant editing .env and restarting the server, which is not a setting so
+        much as a rebuild.
+      -->
+      <div class="picker">
+        <section class="pick">
+          <h3 class="pick-head">What to clip</h3>
+          <p class="pick-note">Twitch categories. Every live channel in these is watched.</p>
+          <div class="auto-channels" id="auto-games"></div>
+          <form class="auto-add" id="game-add">
+            <input
+              id="game-add-input"
+              type="text"
+              placeholder="Add a game: Fortnite"
+              autocomplete="off"
+            />
+            <button type="submit">Add game</button>
+          </form>
+        </section>
+        <section class="pick">
+          <h3 class="pick-head">Who to clip</h3>
+          <p class="pick-note">Channels automation cuts from, inside those categories.</p>
+          <div class="auto-channels" id="auto-channels"></div>
+          <form class="auto-add" id="auto-add">
+            <input
+              id="auto-add-input"
+              type="text"
+              placeholder="Add a channel: name or twitch.tv link"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit">Add channel</button>
+          </form>
+        </section>
+      </div>
+      <p class="auto-error" id="auto-error" hidden></p>
+
       <div class="auto-options">
-        <span class="auto-games" id="auto-games"></span>
         <label class="switch switch-small" title="Mix a track from the music folder quietly under each new short">
           <input type="checkbox" id="auto-music" />
           <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
@@ -95,18 +133,6 @@
           </select>
         </label>
       </div>
-      <div class="auto-channels" id="auto-channels"></div>
-      <form class="auto-add" id="auto-add">
-        <input
-          id="auto-add-input"
-          type="text"
-          placeholder="Add a channel: name or twitch.tv link"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <button type="submit">Add channel</button>
-      </form>
-      <p class="auto-error" id="auto-error" hidden></p>
       <p class="auto-status" id="auto-status"></p>
       <div class="uploads" id="uploads" hidden>
         <div class="uploads-head">

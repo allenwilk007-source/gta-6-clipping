@@ -501,6 +501,8 @@ const auto = {
   shorts: document.getElementById('shorts'),
   template: document.getElementById('short-template'),
   games: document.getElementById('auto-games'),
+  gameForm: document.getElementById('game-add'),
+  gameInput: document.getElementById('game-add-input'),
   music: document.getElementById('auto-music'),
   musicNote: document.getElementById('auto-music-note'),
   scopeWrap: document.getElementById('auto-scope-wrap'),
@@ -660,6 +662,34 @@ function channelChip({ login, state }) {
   remove.setAttribute('aria-label', `Stop automating ${login}`);
   remove.addEventListener('click', () => changeAutomation({ remove: login }));
   chip.append(dot, name, remove);
+  return chip;
+}
+
+/**
+ * One category in the watch list.
+ *
+ * The last one has no remove button rather than a remove button that fails:
+ * an empty list would mean "every category on Twitch", and the server refuses
+ * it, so the panel should not offer the click in the first place.
+ */
+function gameChip(name, only) {
+  const chip = document.createElement('span');
+  chip.className = 'game';
+  const label = document.createElement('span');
+  label.textContent = name;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.textContent = '\u00d7';
+  if (only) {
+    remove.disabled = true;
+    remove.title = 'Keep at least one game';
+    remove.setAttribute('aria-label', 'Keep at least one game');
+  } else {
+    remove.title = `Stop clipping ${name}`;
+    remove.setAttribute('aria-label', `Stop clipping ${name}`);
+    remove.addEventListener('click', () => changeAutomation({ removeGame: name }));
+  }
+  chip.append(label, remove);
   return chip;
 }
 
@@ -834,7 +864,8 @@ function renderAutomation(view) {
   auto.enabled.checked = view.enabled;
   auto.enabledLabel.textContent = view.enabled ? 'On' : 'Off';
 
-  auto.games.textContent = view.games?.length ? `Clipping ${view.games.join(' + ')}` : '';
+  const games = view.games || [];
+  auto.games.replaceChildren(...games.map((name) => gameChip(name, games.length === 1)));
   auto.music.checked = Boolean(view.music);
   auto.musicNote.textContent = !view.music
     ? ''
@@ -875,6 +906,13 @@ auto.music.addEventListener('change', async () => {
 });
 
 auto.scope.addEventListener('change', () => changeAutomation({ scope: auto.scope.value }));
+
+auto.gameForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const value = auto.gameInput.value.trim();
+  if (!value) return;
+  if (await changeAutomation({ addGame: value })) auto.gameInput.value = '';
+});
 
 auto.form.addEventListener('submit', async (event) => {
   event.preventDefault();

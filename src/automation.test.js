@@ -56,10 +56,20 @@ test('the panel adds, removes and switches, and says why when it cannot', () => 
 });
 
 test('saved settings are cleaned on the way back in', () => {
-  const fallback = { enabled: false, channels: ['xqc'], music: false, scope: 'channels' };
+  const fallback = { enabled: false, channels: ['xqc'], games: ['Grand Theft Auto VI'], music: false, scope: 'channels' };
   assert.deepEqual(
-    sanitizeSettings({ enabled: true, channels: ['Lirik', 'bad name', 'lirik'], music: true, scope: 'category' }, fallback),
-    { enabled: true, channels: ['lirik'], music: true, scope: 'category' },
+    sanitizeSettings(
+      {
+        enabled: true,
+        channels: ['Lirik', 'bad name', 'lirik'],
+        // Spacing collapsed, blanks dropped, the repeat folded away.
+        games: ['  Fortnite ', 'Fortnite', ''],
+        music: true,
+        scope: 'category',
+      },
+      fallback,
+    ),
+    { enabled: true, channels: ['lirik'], games: ['Fortnite'], music: true, scope: 'category' },
   );
   // A missing or broken file falls back rather than throwing.
   assert.deepEqual(sanitizeSettings(null, fallback), fallback);
