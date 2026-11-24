@@ -109,6 +109,19 @@ test('the quote is the line said as it happened, not the filler around it', () =
   assert.equal(pickQuote(spoken([21, 'that was so fucking close!']), { reactionAt: 25 }), 'That was so f****** close!');
 });
 
+test('a curly apostrophe does not smuggle a hollow line past the content test', () => {
+  // "it’s" used to split into "it" and "s". "it" is a known empty word; "s"
+  // is in no list at all, so it counted as a word that named something, and
+  // two of them were enough to pass a line made of nothing.
+  assert.equal(pickQuote(spoken([22, 'it’s what it’s']), { reactionAt: 25 }), null);
+  assert.equal(pickQuote(spoken([22, 'that’s what you’re doing']), { reactionAt: 25 }), null);
+  // A real line is kept whichever apostrophe the transcript used. The quote
+  // itself still carries the speaker's own character — the normalising is for
+  // counting words, not for rewriting what was said.
+  assert.equal(pickQuote(spoken([22, 'i’m about to be a gay dancer']), { reactionAt: 25 }), 'I’m about to be a gay dancer');
+  assert.equal(pickQuote(spoken([22, "i'm about to be a gay dancer"]), { reactionAt: 25 }), "I'm about to be a gay dancer");
+});
+
 test('a title says what happened, best source first, with an emoji', () => {
   const words = spoken([20, 'he just stole the cop car!']);
   const laughing = { classes: { funny: { z: 5 } } };

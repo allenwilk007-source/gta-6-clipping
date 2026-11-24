@@ -81,6 +81,24 @@ export const shortformConfig = () => {
 const UNDRAWABLE = /[^\p{Script=Latin}\p{N}\s.,!?'"&:;()\-–—…%$#@+/\p{Extended_Pictographic}\u200d\ufe0f]/gu;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
+// Taking the emoji out of "GTA VI🔥BOYS NIGHT" must leave a space behind,
+// or the words either side of it are welded into "GTA VIBOYS NIGHT" and the
+// title becomes a word nobody searches for. Every place that drops emoji goes
+// through here.
+const withoutEmoji = (text) =>
+  String(text ?? '')
+    .replace(new RegExp(EMOJI.source, 'gu'), ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+// A stream title is a banner: several claims joined by whatever the streamer
+// likes as a separator. The furniture test below catches "|" and "[]", but a
+// banner joined by emoji read as one long sentence someone had written about
+// this moment, and the whole thing became the title. An emoji with letters on
+// both sides is being used as a separator; twice over is a banner.
+const EMOJI_SEPARATOR = /\p{L}\s*\p{Extended_Pictographic}[\p{Extended_Pictographic}\u200d\ufe0f\s]*\p{L}/gu;
+export const looksLikeBanner = (text) => (String(text ?? '').match(EMOJI_SEPARATOR) || []).length >= 2;
+
 /**
  * A title made fit to print over video.
  *
@@ -242,6 +260,51 @@ const EMPTY_WORDS = new Set(
   ),
 );
 
+// EMPTY_WORDS above is interjections. This is the rest of the machinery of a
+// sentence: pronouns, auxiliaries, and the handful of verbs people reach for
+// when they are not saying anything in particular — do, get, go, know, think,
+// need. A line made only of these is grammatical and empty.
+//
+// Measured against what actually got posted: "What do you think?", "Let's do
+// it", "Hey, what are we doing?" and "What do you need?" are made of nothing
+// else, and each took 0-2 views. "My car is impounded" keeps car and
+// impounded; "I'm about to be a gay dancer" keeps gay and dancer, and took
+// thirty-seven.
+const HOLLOW = new Set(
+  `do does did doing done be am is are was were been being having have has had
+   get gets got getting go goes going gone went come comes coming came
+   know knows knew think thinks thought need needs needed want wants wanted
+   say says said see sees saw look looks looking take takes took give gives
+   make makes made let lets gonna wanna gotta gon can could will would should
+   you your yours we us our they them their he him his she her hers
+   me my mine here there where when how why who which what whose
+   one some any all every more most much many thing things stuff way
+   not no never nothing out up down over under back again still just
+   for from with into onto about of to in on at by as if or
+   really actually literally basically kinda sorta pretty very too also even
+   now then today tomorrow yesterday time right left good bad
+   y'all yall gonna buddy man okay alright`
+    .trim()
+    .split(/\s+/),
+);
+
+/** The words in a line that actually name something. */
+const contentWords = (text) =>
+  String(text)
+    .toLowerCase()
+    // A curly apostrophe is not in the class below, so "it’s" split into "it"
+    // and "s" — and "s" is in neither word list, so it counted as a word that
+    // named something. Two of those and a line made of nothing but machinery
+    // passed the one test this function exists to apply. Transcripts and
+    // Twitch titles are full of them.
+    .replace(/[‘’ʼ]/g, "'")
+    .split(/[^a-z0-9']+/)
+    .filter(Boolean)
+    .filter((word) => {
+      const bare = word.replace(/'(?:s|t|re|ll|ve|d|m)$/, '');
+      return !EMPTY_WORDS.has(word) && !EMPTY_WORDS.has(bare) && !HOLLOW.has(word) && !HOLLOW.has(bare);
+    });
+
 /**
  * The line the streamer said that best says what happened.
  *
@@ -254,15 +317,34 @@ export function pickQuote(words, { reactionAt = 25, mild = true } = {}) {
   let best = null;
   for (const sentence of sentencesFrom(words)) {
     if (sentence.end < reactionAt - 14 || sentence.start > reactionAt + 4) continue;
-    const text = sentence.text.replace(FILLER, '').replace(/[.,;:]+$/, '').trim();
+    const text = sentence.text
+      .replace(FILLER, '')
+      .replace(/[.,;:]+$/, '')
+      // The transcript splits contractions it half-heard: "y 'all", "I 'm".
+      // Joining them back is not cosmetic — it stops a mangled word counting
+      // as something the line named.
+      .replace(/\s+'/g, "'")
+      .trim();
     const tokens = text.split(/\s+/).filter(Boolean);
-    if (tokens.length < 2 || tokens.length > 12) continue;
-    const meaningful = tokens.filter((t) => !EMPTY_WORDS.has(t.toLowerCase().replace(/[^a-z']/g, ''))).length;
-    if (meaningful < 2) continue;
+    // Three words, not two. Two-word quotes off a transcript are nearly all
+    // mishearings ("Play drive", "Reach rolls"), and a two-word line is not a
+    // hook even when it is correct.
+    if (tokens.length < 3 || tokens.length > 12) continue;
+    // Two words that name something, or there is no point quoting it. This is
+    // the whole difference between "My car is impounded" and "What do you
+    // need?", both of which the old test passed.
+    const says = contentWords(text);
+    if (says.length < 2) continue;
 
     const middle = (sentence.start + sentence.end) / 2;
     let score = 1 - Math.min(1, Math.abs(middle - (reactionAt - 2)) / 16);
-    if (/[!?]$/.test(text)) score += 0.4;
+    // A shout is a reaction. A question mark is not: it used to earn the same
+    // bonus, which is how "What do you think?" kept beating the line someone
+    // actually reacted to.
+    if (/!/.test(text)) score += 0.45;
+    // More said, better said — with a ceiling, so a rambling sentence does not
+    // win on length alone.
+    score += Math.min(says.length, 4) * 0.15;
     if (tokens.length >= 3 && tokens.length <= 8) score += 0.2;
     if (!best || score > best.score) best = { text, score };
   }
@@ -325,7 +407,12 @@ export function titleFor(
   const raw = String(moment?.title || '');
 
   const candidates = [];
-  if (moment?.source !== 'chat' && !STREAM_TITLE.test(raw) && !isBoilerplateTitle(raw, moment?.broadcaster)) {
+  if (
+    moment?.source !== 'chat' &&
+    !STREAM_TITLE.test(raw) &&
+    !looksLikeBanner(raw) &&
+    !isBoilerplateTitle(raw, moment?.broadcaster)
+  ) {
     const clipTitle = cleanCaption(raw);
     if (clipTitle) candidates.push(withEmoji(censor(clipTitle, { mild })));
   }
@@ -421,12 +508,9 @@ function fill(template, name, game) {
 /** A clip title a person wrote about this moment, cleaned up, or null. */
 export function writtenTitle(moment, { mild = true } = {}) {
   const raw = String(moment?.title || '');
-  if (moment?.source === 'chat' || !raw || STREAM_TITLE.test(raw)) return null;
+  if (moment?.source === 'chat' || !raw || STREAM_TITLE.test(raw) || looksLikeBanner(raw)) return null;
   if (isBoilerplateTitle(raw, moment?.broadcaster)) return null;
-  const written = cleanCaption(raw)
-    .replace(new RegExp(EMOJI.source, 'gu'), '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const written = withoutEmoji(cleanCaption(raw));
   if (written.split(/\s+/).length < 2) return null;
   const text = censor(written, { mild });
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -461,10 +545,7 @@ const hookPattern = (hook) =>
  * emoji. 👀 and 🔥 are also the neutral pair, so on their own they say nothing.
  */
 export function reactionFromEmoji(caption) {
-  const text = String(caption || '')
-    .replace(new RegExp(EMOJI.source, 'gu'), '')
-    .replace(/[\u200d\ufe0f]/g, '')
-    .trim();
+  const text = withoutEmoji(String(caption || '').replace(/[\u200d\ufe0f]/g, ''));
   for (const [name, { hooks }] of Object.entries(REACTIONS)) {
     if (hooks.some((hook) => hookPattern(hook.replace('{name}', 'chat')).test(text) || hookPattern(hook).test(text))) return name;
   }
@@ -518,16 +599,14 @@ export const INSTAGRAM_HOOK_MAX = 125;
  * tag, all inside 100 characters. The creator's tag goes in only if it fits;
  * the description is shortened before #Shorts is ever dropped.
  */
-export function youtubeTitle(about, moment) {
+export function youtubeTitle(about, moment, { titleCase: useTitleCase = true } = {}) {
   const gameTag = gameInfo(moment?.game)?.youtube || '';
   const full = ['#Shorts', gameTag, creatorTag(moment)].filter(Boolean).join(' ');
   const short = ['#Shorts', gameTag].filter(Boolean).join(' ');
-  const text = titleCase(
-    String(about || '')
-      .replace(new RegExp(EMOJI.source, 'gu'), '')
-      .replace(/\s+/g, ' ')
-      .trim(),
-  );
+  const plain = withoutEmoji(about);
+  // A quote is speech, so it keeps the speaker's own capitalisation; a
+  // description is a headline and gets Title Case.
+  const text = useTitleCase ? titleCase(plain) : plain;
   for (const tags of [full, short]) {
     if (text.length + 1 + tags.length <= YOUTUBE_TITLE_MAX) return `${text} ${tags}`;
   }
@@ -556,6 +635,21 @@ export function postPartsFor(
   // line again — unless a person wrote what happens, which beats either.
   const written = writtenTitle(moment, { mild });
   const youtubeAbout = written && sameTitle(written) === sameTitle(what) ? what : describe(moment, { avoid: [...avoid, what], mild, reaction: given });
+  // Nothing here watches the video, so the most it can honestly say about what
+  // happens is what somebody said while it happened. A line from the stream
+  // beats "chat goes wild", which is true of every clip this tool ever makes.
+  // A title a person wrote still beats both.
+  // A line somebody said is the most concrete thing known about a clip nothing
+  // watched, so when there is one the YouTube title carries it whole. The lead
+  // is kept to who and where: the long "what chat did" wording spent so much of
+  // the 100 characters that the quote was cut off mid-sentence, and half a
+  // sentence in quotation marks tells a viewer less than no quote at all.
+  // TikTok still opens with the line itself, so the two do not read alike.
+  const youtubeGame = gameLabel(moment?.game);
+  const spoken =
+    !written && line
+      ? `${titleCase(who || 'Twitch')}${youtubeGame ? ` in ${youtubeGame}` : ''}: "${line}"`
+      : null;
   const reaction = REACTIONS[dominantReaction(moment?.chat)] || null;
   const emoji = [...title].filter((c) => EMOJI.test(c)).at(-1) || reaction?.emoji[0] || '';
 
@@ -590,9 +684,9 @@ export function postPartsFor(
       tiktok: `${tiktokHook}${who ? ` (credit: ${who.toLowerCase()} on twitch)` : ''} ${tagsFor('#twitch', '#gaming')}`,
       instagram: [instaHook, credit, tagsFor('#gaming', '#twitch', '#reels')].filter(Boolean).join('\n'),
       youtube: [
-        youtubeTitle(youtubeAbout, moment),
+        youtubeTitle(spoken || youtubeAbout, moment, { titleCase: !spoken }),
         '',
-        line ? `"${line}"` : null,
+        !spoken && line ? `"${line}"` : null,
         credit || null,
         link ? `${linkLabel}: ${link}` : null,
         '',

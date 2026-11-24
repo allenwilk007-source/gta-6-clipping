@@ -60,6 +60,14 @@ h1 {
   letter-spacing: 0.01em;
 }
 
+/* The mark sits with the word rather than beside it: aligned to the text's
+   own baseline box, not the line box, so it does not ride high. */
+.mark {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 9px;
+}
+
 .game {
   color: var(--muted);
   font-size: 13px;
@@ -67,18 +75,230 @@ h1 {
 
 .bar-right {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* Shown once, on a first run, and never after the three are done. Quiet on
+   purpose: it is a note to a new owner, not a banner demanding attention. */
+.start {
+  margin: 18px 0 0;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.start h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.start-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: start;
+}
+
+.start-step {
+  counter-increment: start;
+  padding-left: 30px;
+  position: relative;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* The number is the marker until the step is done, and then it is a tick:
+   one place to look, rather than a number and a status beside it. */
+.start-step::before {
+  content: counter(start);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  display: grid;
+  place-items: center;
+}
+
+.start-step.is-done::before {
+  content: '\2713';
+  border-color: transparent;
+  background: var(--ok, #35d07f);
+  color: #06250f;
+}
+
+.start-step b {
+  display: block;
+  font-weight: 620;
+}
+
+.start-step.is-done b {
+  color: var(--muted);
+  font-weight: 560;
+}
+
+.start-step span {
+  color: var(--muted);
+}
+
+/* The three numbers the header exists for. Bigger than the scale they
+   replaced, because they are the answer and the scale is the context. */
+.outcome {
+  display: flex;
+  gap: 26px;
+}
+
+.outcome-cell {
+  text-align: right;
+}
+
+.outcome-cell b {
+  display: block;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.outcome-cell span {
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The feed's own heading, where the saturation scale now lives. */
+.feed-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 18px;
+  margin: 26px 0 10px;
+}
+
+.feed-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 620;
+}
+
+.feed-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* The four buckets are one scale, so they are drawn as one object: joined,
+   not spaced, and each carrying the colour it already means elsewhere in the
+   page. Grouping by adjacency rather than by giving each its own box. */
+.gauge {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.gauge-cell {
+  min-width: 66px;
+  padding: 5px 14px 6px;
+  text-align: center;
+}
+
+/* A hairline in the page background, so the cells read as divisions of one
+   bar rather than as four separate chips. */
+.gauge-cell + .gauge-cell {
+  border-left: 1px solid var(--bg);
+}
+
+.gauge-cell b {
+  display: block;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge-cell span {
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gauge-cell.is-early b {
+  color: var(--early);
+}
+
+.gauge-cell.is-fresh b {
+  color: var(--fresh);
+}
+
+.gauge-cell.is-warm b {
+  color: var(--warm);
+}
+
+.gauge-cell.is-flooded b {
+  color: var(--flooded);
+}
+
+/* How the measurement was taken: present, quiet, out of the way. */
+.bar-meta {
   color: var(--muted);
   font-size: 12px;
 }
 
-.bar-right b {
-  display: block;
-  color: var(--text);
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+/* On a phone the four fixed cells were wider than the screen, so the last one
+   was cut in half and the line under it ran off the edge. Give the bar the
+   width instead and let the cells divide it. */
+@media (max-width: 680px) {
+  .bar-right {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  /* Three cells across the screen, reading left to right like a sentence,
+     rather than three right-aligned numbers stacked in a corner. */
+  .outcome {
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .outcome-cell {
+    text-align: left;
+  }
+
+  .feed-stats {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .gauge {
+    width: 100%;
+  }
+
+  .gauge-cell {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 5px 2px 6px;
+  }
+
+  .bar-meta {
+    text-align: left;
+  }
 }
 
 /* ---------- controls ---------- */
@@ -334,6 +554,17 @@ select {
 
 .meta .hot {
   color: var(--warm);
+}
+
+/* How the measurement was arrived at, rather than the measurement. Said as a
+   tag so it reads as a qualification and not as another number in the row. */
+.meta-flag {
+  padding: 1px 9px 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--flooded);
+  font-size: 11px;
+  font-variant-numeric: normal;
 }
 
 .actions {
@@ -996,4 +1227,68 @@ select {
 .auto-status.is-error {
   color: var(--danger);
   font-weight: 600;
+}
+
+/* ---------- a row of labelled values ---------- */
+
+/* Numbers a person scans for, laid out so they can be scanned for. Spacing
+   does the grouping; there is no box around any of it. */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin: 0;
+}
+
+.facts dt {
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.facts dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The sentences. Still here, still true, no longer competing with the
+   numbers for the same line. */
+.facts-note {
+  margin: 10px 0 0;
+  max-width: 68ch;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.facts-note.is-error {
+  color: var(--danger);
+}
+
+/* The fold for channels that are not doing anything right now. Reads as part
+   of the row of chips rather than as a separate control. */
+.channel-more {
+  padding: 4px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.channel-more:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.channel-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

@@ -2,6 +2,7 @@
   "name": "gta-6-clipping",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "description": "Live clip-saturation feed: which stream moments are hot and not yet flooded.",
   "type": "module",
   "engines": {
@@ -10,9 +11,12 @@
   "scripts": {
     "start": "node src/server.js",
     "check": "node src/check.js",
+  "doctor": "node src/doctor.js",
     "auto": "node src/auto.js",
     "eval": "node src/eval.js",
+  "payoff": "node src/payoff.js",
     "recopy": "node src/recopy.js",
-    "test": "node --test \"src/**/*.test.js\""
+    "test": "node --test \"src/**/*.test.js\"",
+    "supervise": "node supervise.mjs"
   }
 }

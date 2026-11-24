@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Saturation Feed</title>
-    <link rel="icon" href="data:," />
+    <link rel="icon" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="/stats.css" />
     <link rel="stylesheet" href="/queue.css" />
@@ -12,10 +13,10 @@
   <body>
     <header class="bar">
       <div class="bar-left">
-        <h1>Saturation&nbsp;Feed</h1>
+        <h1><img class="mark" src="/icon.svg" alt="" width="20" height="15" />Saturation&nbsp;Feed</h1>
         <span class="game" id="game">connecting…</span>
       </div>
-      <div class="bar-right" id="stats"></div>
+      <div class="bar-right" id="outcome"></div>
       <nav class="bar-links">
         <a href="/youtube.html">YouTube</a>
         <a href="/tiktok.html">TikTok</a>
@@ -49,6 +50,17 @@
     </nav>
 
     <div class="mode-banner" id="mode" hidden></div>
+
+    <!--
+      Shown until the three things that have to happen once have happened, and
+      never again. A first run used to open on three empty platform columns
+      and a feed of moments, with nothing anywhere saying what to do with any
+      of it.
+    -->
+    <section class="start" id="start" hidden>
+      <h2>Three things, once</h2>
+      <ol class="start-steps" id="start-steps"></ol>
+    </section>
 
     <section class="auto" id="auto" hidden>
       <div class="auto-head">
@@ -154,6 +166,8 @@
         uploader actually applies — but a better-scoring short landing, a refusal,
         or switching a platform off all move them.
       </p>
+      <p class="queue-caveat is-off" id="queue-off-note" hidden></p>
+      <p class="queue-caveat" id="queue-empty-note" hidden></p>
       <div class="schedule-grid">
         <div class="platform" id="youtube">
           <div class="platform-head">
@@ -178,6 +192,16 @@
         </div>
       </div>
     </section>
+
+    <!--
+      The saturation scale describes the feed underneath it, so it lives with
+      the feed. In the product header it was answering "how is the scanner
+      doing?" to someone who came to ask "is my channel getting anything out?"
+    -->
+    <div class="feed-head">
+      <h2>Live moments</h2>
+      <div class="feed-stats" id="stats"></div>
+    </div>
 
     <main id="feed" class="feed"></main>
 

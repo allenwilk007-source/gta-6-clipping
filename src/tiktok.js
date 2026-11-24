@@ -49,6 +49,7 @@ const AUTH_URL = 'https://www.tiktok.com/v2/auth/authorize/';
 const TOKEN_URL = 'https://open.tiktokapis.com/v2/oauth/token/';
 const INBOX_INIT_URL = 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/';
 const STATUS_URL = 'https://open.tiktokapis.com/v2/post/publish/status/fetch/';
+const USER_URL = 'https://open.tiktokapis.com/v2/user/info/';
 
 // TikTok's documented chunk rules. A chunk is at least 5 MiB and at most
 // 64 MiB, except the last, which may run to 128 MiB to absorb the remainder.
@@ -192,6 +193,53 @@ const tokenRecord = (body, now) => {
   return record;
 };
 
+/**
+ * Who the kept sign-in belongs to.
+ *
+ * The dashboard could say "Connected" and nothing else, which is no help at
+ * all when the question is *which account*: open_id is per-app and opaque, so
+ * it names the account to this code and to nobody else.
+ *
+ * Only what the granted scopes allow. user.info.basic carries the display
+ * name and avatar, user.info.stats the counts. The @handle is NOT here: it
+ * lives behind user.info.profile, which this app does not ask for. So the
+ * account is named the way TikTok names it on the profile itself.
+ */
+const USER_FIELDS = ['open_id', 'display_name', 'avatar_url', 'follower_count', 'likes_count', 'video_count'];
+
+export async function fetchProfile(accessToken, { fetchImpl = fetch, fields = USER_FIELDS } = {}) {
+  let res;
+  try {
+    res = await fetchImpl(`${USER_URL}?fields=${fields.join(',')}`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (err) {
+    throw new TikTokError(`profile: ${err.message}`, 'transient');
+  }
+  const body = await bodyOf(res);
+  // A 200 carrying error.code is still a failure here, same as the posting
+  // API. TikTok says code 'ok' when it means it.
+  const code = String(body?.error?.code || '');
+  if (!res.ok || (code && code !== 'ok')) {
+    const detail = body?.error?.message || code || res.statusText;
+    throw new TikTokError(`profile: ${res.status} ${detail}`, classify(res.status, body));
+  }
+  const user = body?.data?.user;
+  if (!user) throw new TikTokError('profile: TikTok returned no user', 'transient');
+  return user;
+}
+
+/** TikTok's field names mapped onto the shape the account page already reads. */
+export const profileAccount = (user) => ({
+  openId: user.open_id,
+  displayName: user.display_name,
+  avatar: user.avatar_url,
+  followers: user.follower_count,
+  likes: user.likes_count,
+  posts: user.video_count,
+});
+
 export async function exchangeCode(keys, code, { fetchImpl = fetch, now = Date.now() } = {}) {
   const body = await tokenRequest(
     {
@@ -204,7 +252,16 @@ export async function exchangeCode(keys, code, { fetchImpl = fetch, now = Date.n
     fetchImpl,
   );
   if (!body.refresh_token) throw new TikTokError('TikTok returned no refresh token; connect again', 'auth');
-  return { ...tokenRecord(body, now), connectedAt: new Date(now).toISOString() };
+  const record = { ...tokenRecord(body, now), connectedAt: new Date(now).toISOString() };
+  // Ask who this is while the fresh access token is still in hand, so naming
+  // the account costs no refresh later. Best effort on purpose: a name is
+  // worth having, and never worth losing the sign-in that was just made.
+  try {
+    record.account = profileAccount(await fetchProfile(body.access_token, { fetchImpl }));
+  } catch {
+    // Left unnamed; the server fills it in on a later run.
+  }
+  return record;
 }
 
 /**

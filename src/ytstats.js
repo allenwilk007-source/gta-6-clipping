@@ -159,6 +159,41 @@ export async function fetchStats({ token, max = 25, fetchImpl = fetch } = {}) {
   return { channel, videos, fetchedAt: new Date().toISOString() };
 }
 
+/** videos.list takes fifty ids for one unit, so ask in fifties. */
+export function idBatches(ids, size = 50) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  const out = [];
+  for (let i = 0; i < unique.length; i += size) out.push(unique.slice(i, i + size));
+  return out;
+}
+
+/**
+ * Statistics for videos we name, rather than for the channel's newest.
+ *
+ * `fetchStats` above answers "how is the channel doing", which is a different
+ * question from "how did the thing we chose to post do". Answering the second
+ * needs the ids we kept at upload time, and those are not necessarily recent
+ * or even still the newest 25.
+ *
+ * A whole batch is one unit. Thirty-eight videos cost one.
+ */
+export async function fetchVideoStats({ ids = [], token, fetchImpl = fetch } = {}) {
+  const rows = [];
+  for (const batch of idBatches(ids)) {
+    const body = await get(
+      'videos',
+      { part: 'snippet,statistics,contentDetails,status', id: batch.join(',') },
+      token,
+      fetchImpl,
+    );
+    rows.push(...videoRows(body));
+  }
+  // A deleted or private video simply is not in the reply, so the caller is
+  // told which of the ids it asked about came back with nothing to say.
+  const found = new Set(rows.map((row) => row.id));
+  return { videos: rows, missing: [...new Set(ids.filter(Boolean))].filter((id) => !found.has(id)) };
+}
+
 /**
  * fetchStats behind a floor, so the page can poll without spending the
  * uploader's quota. A failure is cached too, briefly: a dashboard that retries

@@ -5,6 +5,8 @@ import {
   MIN_REFRESH_MS,
   StatsCache,
   fetchStats,
+  fetchVideoStats,
+  idBatches,
   parseDuration,
   statsErrorKind,
   summarizeChannel,
@@ -275,5 +277,40 @@ describe('StatsCache', () => {
     assert.equal(after.channel.subscribers, 10);
     assert.equal(after.error.kind, 'http');
     assert.equal(after.cached, true);
+  });
+});
+
+describe('fetchVideoStats', () => {
+  it('asks in fifties, because fifty ids cost the same one unit as one', () => {
+    const ids = Array.from({ length: 120 }, (_, i) => `v${i}`);
+    const batches = idBatches(ids);
+    assert.deepEqual(batches.map((b) => b.length), [50, 50, 20]);
+  });
+
+  it('never asks about the same id twice, or about nothing', () => {
+    assert.deepEqual(idBatches(['a', 'a', null, 'b', undefined, '']), [['a', 'b']]);
+    assert.deepEqual(idBatches([]), []);
+  });
+
+  it('names the ids that came back with nothing to say', async () => {
+    // A deleted or private video is simply absent from the reply, and a
+    // caller that did not notice would quietly treat it as zero views.
+    const fetchImpl = async () => ({
+      ok: true,
+      json: async () => ({ items: [{ id: 'kept', snippet: { title: 't' }, statistics: { viewCount: '7' } }] }),
+    });
+    const { videos, missing } = await fetchVideoStats({ ids: ['kept', 'gone'], token: 't', fetchImpl });
+    assert.equal(videos.length, 1);
+    assert.equal(videos[0].views, 7);
+    assert.deepEqual(missing, ['gone']);
+  });
+
+  it('spends nothing when there is nothing to ask about', async () => {
+    let calls = 0;
+    const fetchImpl = async () => { calls += 1; return { ok: true, json: async () => ({ items: [] }) }; };
+    const { videos, missing } = await fetchVideoStats({ ids: [], token: 't', fetchImpl });
+    assert.equal(calls, 0, 'an empty list must not cost a quota unit');
+    assert.deepEqual(videos, []);
+    assert.deepEqual(missing, []);
   });
 });
