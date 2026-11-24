@@ -155,7 +155,7 @@
   overflow: hidden;
   border-radius: 6px;
   aspect-ratio: 16 / 9;
-  background: #0a0c10;
+  background: var(--sunken);
 }
 
 .video-thumb img {
@@ -172,7 +172,7 @@
 }
 
 .video-title:hover {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .video-meta {
@@ -205,7 +205,7 @@
   padding: 8px 16px;
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 13px;
   text-decoration: none;
 }

@@ -1,16 +1,103 @@
 :root {
+  /* The dashboard used to be dark only. It is now the same product as the page
+   * that sells it, so light is the default and dark is a switch in the header
+   * rather than an assumption. The names below are the contract: every rule in
+   * this file and its siblings asks for a token, never for a colour, so the two
+   * palettes stay honest about covering the same ground. */
+  /* The page is tinted and the panels are white, not the other way round. On
+   * a dark palette a panel is lighter than its page; invert that naively and
+   * every card disappears into the background. */
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --panel-2: #f1f5f9;
+  --sunken: #eef2f7;
+  --sunken-text: #334155;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --text: #020617;
+
+  /* These are darker than the dark palette's equivalents rather than being the
+   * same hues reused. A status colour that reads clearly against #0d0f14 is
+   * washed out against white, and these are not decoration: they are how the
+   * operator tells fresh from flooded at a glance. Every one of them was
+   * measured against the two surfaces it actually lands on — the panel and the
+   * sunken block — and clears 4.5:1 on both. Changing one means measuring it
+   * again, not eyeballing it. */
+  --muted: #5f6b7f;
+  --early: #1d6fa5;
+  --fresh: #0f7a4c;
+  --warm: #92610a;
+  --flooded: #5f6b7f;
+  --accent: #6d4df0;
+  /* A filled control and a word of accent-coloured text need opposite things
+   * from the same hue: the fill has to be dark enough to carry white, the text
+   * light enough to be legible on the panel. One token cannot do both, and
+   * trying made the buttons pass while the labels failed. */
+  --accent-ink: #6d4df0;
+  --accent-line: #c7bbfb;
+  --accent-wash: rgba(109, 77, 240, 0.1);
+  --danger: #c42427;
+  --on-accent: #ffffff;
+  --on-ok: #ffffff;
+  --on-letterbox: #cbd5e1;
+
+  /* Light rather than the dark palette's 0.16. A badge tint lands on a sunken
+   * panel that is already off-white, and the two darkenings compound: at 0.12
+   * the label fell just under 4.5:1 against its own pill. The tint only has to
+   * say "this is a badge". */
+  --tint-fresh: rgba(15, 122, 76, 0.08);
+  --tint-early: rgba(29, 111, 165, 0.08);
+  --tint-warm: rgba(146, 97, 10, 0.09);
+  --tint-flooded: rgba(95, 107, 127, 0.1);
+  --tint-danger: rgba(196, 36, 39, 0.4);
+  --streak-fresh: rgba(15, 122, 76, 0.07);
+  --streak-early: rgba(29, 111, 165, 0.08);
+
+  --shadow: 0 1px 2px rgba(2, 6, 23, 0.06);
+  --letterbox: #000;
+}
+
+:root[data-theme='dark'] {
   --bg: #0d0f14;
   --panel: #151922;
   --panel-2: #1b212c;
+  --sunken: #0a0c10;
+  --sunken-text: #cfd6e4;
   --line: #262d3a;
+  --line-strong: #38425a;
   --text: #e7ebf3;
   --muted: #8b95a8;
+
   --early: #4db8ff;
   --fresh: #35d07f;
   --warm: #e9b23c;
-  --flooded: #6a7488;
-  --accent: #8a63f4;
+  /* Was #6a7488, which read as 3.4:1 on a panel — dim enough to mean
+   * "deprioritised" and also dim enough to be hard to read. Kept blue-grey so
+   * it is still distinct from plain muted text, but light enough to pass. */
+  --flooded: #879ab5;
+  /* Was #8a63f4, which is too light to carry white text: the filled buttons
+   * and badges sat at 4.06:1. This is the same violet one step down, which
+   * clears 4.5:1 and is indistinguishable at a glance. Pre-dates the light
+   * theme; found by measuring both palettes rather than only the new one. */
+  --accent: #7a4fe8;
+  --accent-ink: #a98dff;
+  --accent-line: #3b2d66;
+  --accent-wash: rgba(138, 99, 244, 0.16);
   --danger: #f2585b;
+  --on-accent: #ffffff;
+  --on-ok: #06250f;
+
+  --tint-fresh: rgba(53, 208, 127, 0.16);
+  --tint-early: rgba(77, 184, 255, 0.16);
+  --tint-warm: rgba(233, 178, 60, 0.16);
+  --tint-flooded: rgba(106, 116, 136, 0.18);
+  --tint-danger: rgba(242, 88, 91, 0.4);
+  --streak-fresh: rgba(53, 208, 127, 0.07);
+  --streak-early: rgba(77, 184, 255, 0.08);
+
+  --shadow: none;
+  --letterbox: #000;
+  --on-letterbox: #cbd5e1;
 }
 
 * {
@@ -135,8 +222,8 @@ h1 {
 .start-step.is-done::before {
   content: '\2713';
   border-color: transparent;
-  background: var(--ok, #35d07f);
-  color: #06250f;
+  background: var(--ok, var(--fresh));
+  color: var(--on-ok);
 }
 
 .start-step b {
@@ -331,13 +418,13 @@ h1 {
 
 .chip:hover {
   color: var(--text);
-  border-color: #38425a;
+  border-color: var(--line-strong);
 }
 
 .chip.is-on {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .controls-right {
@@ -364,7 +451,7 @@ h1 {
 .toggle input {
   width: 15px;
   height: 15px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-ink);
   cursor: pointer;
 }
 
@@ -401,7 +488,7 @@ select {
 .mode-banner code {
   padding: 2px 6px;
   border-radius: 5px;
-  background: #0a0c10;
+  background: var(--sunken);
   color: var(--text);
   font-size: 12px;
 }
@@ -427,7 +514,7 @@ select {
 
 .card.is-fresh {
   border-left-color: var(--fresh);
-  background: linear-gradient(90deg, rgba(53, 208, 127, 0.07), var(--panel) 220px);
+  background: linear-gradient(90deg, var(--streak-fresh), var(--panel) 220px);
 }
 
 .card.is-warm {
@@ -439,11 +526,11 @@ select {
 .card.is-early {
   border-left-color: var(--early);
   border-left-style: dashed;
-  background: linear-gradient(90deg, rgba(77, 184, 255, 0.08), var(--panel) 220px);
+  background: linear-gradient(90deg, var(--streak-early), var(--panel) 220px);
 }
 
 .is-early .state {
-  background: rgba(77, 184, 255, 0.16);
+  background: var(--tint-early);
   color: var(--early);
 }
 
@@ -506,17 +593,17 @@ select {
 }
 
 .is-fresh .state {
-  background: rgba(53, 208, 127, 0.16);
+  background: var(--tint-fresh);
   color: var(--fresh);
 }
 
 .is-warm .state {
-  background: rgba(233, 178, 60, 0.16);
+  background: var(--tint-warm);
   color: var(--warm);
 }
 
 .is-flooded .state {
-  background: rgba(106, 116, 136, 0.18);
+  background: var(--tint-flooded);
   color: var(--flooded);
 }
 
@@ -597,8 +684,8 @@ select {
 }
 
 .clip:not(:disabled) {
-  border-color: #3b2d66;
-  background: rgba(138, 99, 244, 0.16);
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
 }
 
 .clip:disabled {
@@ -619,14 +706,14 @@ select {
 .clip-status code {
   padding: 1px 5px;
   border-radius: 4px;
-  background: #0a0c10;
-  color: #cfd6e4;
+  background: var(--sunken);
+  color: var(--sunken-text);
   font-size: 11px;
 }
 
 .clip-status.is-queued,
 .clip-status.is-running {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .clip-status.is-done {
@@ -662,13 +749,13 @@ select {
 .notice code {
   padding: 2px 6px;
   border-radius: 5px;
-  background: #0a0c10;
-  color: #cfd6e4;
+  background: var(--sunken);
+  color: var(--sunken-text);
   font-size: 12px;
 }
 
 .notice.is-error {
-  border-color: rgba(242, 88, 91, 0.4);
+  border-color: var(--tint-danger);
 }
 
 .notice.is-error h2 {
@@ -878,7 +965,7 @@ select {
   border: 1px solid var(--accent);
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -921,19 +1008,21 @@ select {
   display: grid;
   place-items: center;
   aspect-ratio: 9 / 16;
-  background: #000;
+  background: var(--letterbox);
 }
 
 .short-frame video {
   display: block;
   width: 100%;
   height: 100%;
-  background: #000;
+  background: var(--letterbox);
 }
 
 .short-placeholder {
   padding: 12px;
-  color: var(--muted);
+  /* The frame behind this is black in both palettes, so it cannot take the
+   * muted colour — in the light theme that is a dark grey on black. */
+  color: var(--on-letterbox);
   font-size: 13px;
   text-align: center;
 }
@@ -1063,6 +1152,25 @@ select {
 }
 
 .bar-links a:hover {
+  color: var(--text);
+}
+/* Sits in the same row as the links and is deliberately quieter than them: it
+ * is a preference, not a destination. Its width is fixed so the header does
+ * not shuffle sideways when the word changes between Dark and Light. */
+.theme {
+  min-width: 52px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.theme:hover {
+  border-color: var(--line-strong);
   color: var(--text);
 }
 

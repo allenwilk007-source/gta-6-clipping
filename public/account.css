@@ -44,7 +44,7 @@
   padding: 8px 16px;
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
   text-decoration: none;
 }
@@ -258,7 +258,7 @@
 .yt-sorts button.is-on {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .yt-list,
@@ -339,7 +339,7 @@
 }
 
 .ytv-tag.is-ours {
-  color: var(--accent);
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 

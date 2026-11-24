@@ -54,7 +54,7 @@
 }
 
 .queue-score {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
