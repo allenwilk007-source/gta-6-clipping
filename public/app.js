@@ -49,6 +49,22 @@ function ago(minutes) {
   return `${(minutes / 60).toFixed(1)}h ago`;
 }
 
+/**
+ * Text on its way into markup.
+ *
+ * Everything else on this page is set with textContent, which needs no help.
+ * The one place that builds markup is notice(), and one of the strings it is
+ * handed comes back from the network.
+ */
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function notice(title, html, isError = false) {
   els.feed.innerHTML = '';
   const box = document.createElement('div');
@@ -400,9 +416,13 @@ function render() {
   renderStats(meta, game);
 
   if (meta.lastError) {
+    // The message is built from fixed strings and a status code today, so
+    // there is no known way to get markup into it. "Today" is the whole
+    // problem: it is the one error string on this page that comes back from
+    // the network, and escaping it costs a line.
     notice(
       'Last poll failed',
-      `<p>${meta.lastError.message}</p><p>Showing the most recent good data. Retrying every ${meta.pollSeconds}s.</p>`,
+      `<p>${escapeHtml(meta.lastError.message)}</p><p>Showing the most recent good data. Retrying every ${Number(meta.pollSeconds)}s.</p>`,
       true,
     );
     return;

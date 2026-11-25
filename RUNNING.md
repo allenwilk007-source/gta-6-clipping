@@ -50,7 +50,7 @@ git clone https://github.com/allenwilk007-source/gta-6-clipping.git
 cd gta-6-clipping
 # put .env here
 npm run doctor    # is this machine ready? says what is missing and where to get it
-npm test          # 501 tests, no network needed
+npm test          # the full suite, no network needed
 npm start         # http://localhost:3000
 ```
 

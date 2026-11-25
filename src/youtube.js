@@ -8,12 +8,13 @@
 // Plain fetch, no SDK: two endpoints for the token, one resumable upload.
 
 import { existsSync } from 'node:fs';
-import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { readFile, rm, stat } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 
 import { config } from './config.js';
+import { writeSecret } from './secretfile.js';
 
 // Upload, plus read access for the stats dashboard. One sign-in covers both,
 // so the owner consents once; adding the second scope does mean anyone who
@@ -135,9 +136,7 @@ export async function loadToken(path = TOKEN_PATH) {
 }
 
 export async function saveToken(token, path = TOKEN_PATH) {
-  const temp = `${path}.tmp`;
-  await writeFile(temp, JSON.stringify(token, null, 2), { encoding: 'utf8', mode: 0o600 });
-  await rename(temp, path);
+  await writeSecret(path, token);
 }
 
 export const forgetToken = (path = TOKEN_PATH) => rm(path, { force: true });

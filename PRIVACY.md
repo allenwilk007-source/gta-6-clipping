@@ -57,15 +57,26 @@ Data is not sold, rented, shared or disclosed to anyone, because there is
 nobody to disclose it to.
 
 The only network connections it makes are directly to the platforms named
-above, to the APIs it has been authorised to use, plus
-`tiktok.com`-, `googleapis.com`-, `facebook.com`- and `twitch.tv`-hosted media
-it downloads on the operator's instruction.
+above and to the APIs it has been authorised to use. In full, that is:
+`twitch.tv` and its media hosts (`*.ttvnw.net`), `googleapis.com` and
+`accounts.google.com`, `tiktok.com`, and `facebook.com` and its Instagram
+endpoints.
+
+Some of those are made on a timer rather than on a click: while it is watching,
+it polls Twitch for who is live, and while it is recording a channel it fetches
+that stream continuously. Nothing is sent anywhere by either.
 
 ## Access tokens
 
 Authorising an account gives this tool a token. Tokens are written to files on
-the operator's own disk with owner-only permissions, and are used only to make
-the API calls described above.
+the operator's own disk, and are used only to make the API calls described
+above.
+
+Those files are created owner-only. On Linux and macOS that is enforced by the
+filesystem. **On Windows it is not:** the operating system takes its
+permissions from the containing folder, so the token is readable by anything
+running as that user. The file sits in the account's own profile, which is the
+same protection the browser's saved passwords have, and no more.
 
 Tokens are never transmitted anywhere except back to the platform that issued
 them.

@@ -97,9 +97,21 @@ export function liveFromPage(html) {
   return { live: true, game: match[1].trim(), viewers: Number(String(match[2] || '0').replace(/[,.]/g, '')) || 0 };
 }
 
+/**
+ * Who we say we are when reading a public channel page.
+ *
+ * This used to claim to be Mozilla, whose only purpose was to look like a
+ * person at a browser - the exact thing TERMS.md says this tool does not do.
+ * Twitch returns the same description meta tag either way, so the pretence
+ * bought nothing and cost the sentence its truth. If Twitch ever decides it
+ * would rather not serve an automated reader, that is a decision it is
+ * entitled to make, and lying to prevent it is not an option here.
+ */
+const USER_AGENT = 'saturation-feed/1.0 (+https://github.com/allenwilk007-source/gta-6-clipping)';
+
 export async function fetchChannelPage(login) {
   const res = await fetch(`https://www.twitch.tv/${encodeURIComponent(login)}`, {
-    headers: { 'user-agent': 'Mozilla/5.0' },
+    headers: { 'user-agent': USER_AGENT },
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`channel page returned ${res.status}`);
