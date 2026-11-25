@@ -123,6 +123,13 @@ export const config = {
   // was taken for. Localhost unless the owner says otherwise, and saying
   // otherwise requires a password (see server.js).
   host: process.env.HOST?.trim() || '127.0.0.1',
+  // Extra names the dashboard will answer to, for a tunnel or a reverse proxy
+  // that arrives carrying its own. Naming one requires a password: something
+  // outside this machine is reaching in, whatever the socket is bound to.
+  allowedHosts: (process.env.DASHBOARD_HOSTS || '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean),
   // Empty means the dashboard is open, which is right on localhost and
   // wrong the moment it is reachable from anywhere else. See gate.js.
   dashboardPassword: process.env.DASHBOARD_PASSWORD || '',

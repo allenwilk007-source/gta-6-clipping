@@ -271,7 +271,7 @@ async function sendShort(req, res, name, download) {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${config.port}`);
-  const where = { host: config.host, port: config.port };
+  const where = { host: config.host, port: config.port, extra: config.allowedHosts };
 
   // A name we do not answer to means somebody pointed their own domain at
   // this machine, which is how a page gets to read these responses rather
@@ -578,7 +578,11 @@ const server = createServer(async (req, res) => {
   await sendStatic(res, url.pathname);
 });
 
-const refusal = refuseOpenDashboard({ host: config.host, password: config.dashboardPassword });
+const refusal = refuseOpenDashboard({
+  host: config.host,
+  password: config.dashboardPassword,
+  extra: config.allowedHosts,
+});
 if (refusal) {
   console.error(`\n  ${refusal}`);
   console.error('  Refusing to start an open dashboard on the network.\n');

@@ -55,12 +55,17 @@ const hostOnly = (value) => {
  * can read the stats, the channel list and the rendered shorts. The socket is
  * still local; the attacker simply had the browser walk through the door.
  */
-export function hostAllowed(headerHost, { host, port }) {
+export function hostAllowed(headerHost, { host, extra = [] }) {
   const asked = hostOnly(headerHost);
   if (!asked) return false;
   // Whatever the server was told to bind to is, by definition, a name it may
   // be reached by - including an operator who deliberately opened it.
   if (asked === hostOnly(host)) return true;
+  // A tunnel or reverse proxy arrives with its own name in the Host header,
+  // which is the entire point of one. Rejecting those outright would have
+  // broken every working remote setup in the name of a threat the password
+  // already covers, so the operator can name the ones they meant.
+  if (extra.some((name) => hostOnly(name) === asked)) return true;
   return LOCAL.has(asked);
 }
 
@@ -117,11 +122,20 @@ export const isLocalHost = (host) => LOCAL.has(String(host ?? '').trim());
  * spends the quota on accounts the owner connected. A warning would scroll
  * away and leave the port open, so this refuses instead.
  */
-export function refuseOpenDashboard({ host, password }) {
-  if (isLocalHost(host)) return null;
+export function refuseOpenDashboard({ host, password, extra = [] }) {
   if (password) return null;
-  return `HOST is set to ${host}, which lets other machines reach this dashboard. ` +
-    'Set DASHBOARD_PASSWORD in .env as well, or leave HOST unset to stay on this machine only.';
+  if (!isLocalHost(host)) {
+    return `HOST is set to ${host}, which lets other machines reach this dashboard. ` +
+      'Set DASHBOARD_PASSWORD in .env as well, or leave HOST unset to stay on this machine only.';
+  }
+  // Naming a tunnel is saying out loud that strangers can reach this. The
+  // socket being on localhost is no comfort when something else is carrying
+  // the internet to it.
+  if (extra.length) {
+    return `DASHBOARD_HOSTS names ${extra.join(', ')}, which means something outside this machine ` +
+      'reaches the dashboard. Set DASHBOARD_PASSWORD in .env as well, or remove DASHBOARD_HOSTS.';
+  }
+  return null;
 }
 
 /**
