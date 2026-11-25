@@ -139,6 +139,55 @@ export function refuseOpenDashboard({ host, password, extra = [] }) {
 }
 
 /**
+ * Slow down password guessing.
+ *
+ * The comparison is constant-time, which closes the timing channel and does
+ * nothing at all about volume: a short password still falls to a few thousand
+ * tries, and a tunnel makes those tries cheap. Counted globally rather than
+ * per address, because behind a tunnel every request arrives from the proxy
+ * and a per-address count would reset on a header an attacker controls.
+ *
+ * There is one owner, so a global count costs them nothing: they type one
+ * password, correctly, and the count goes back to zero. It does mean someone
+ * who can reach the dashboard can keep the owner waiting half a minute at a
+ * time, which is a far smaller problem than the one it solves.
+ */
+export function createThrottle({
+  now = () => Date.now(),
+  free = 5,
+  base = 1000,
+  ceiling = 30_000,
+} = {}) {
+  let failures = 0;
+  let until = 0;
+
+  return {
+    /** Milliseconds the caller must wait, or 0 if they may try now. */
+    waitFor() {
+      const left = until - now();
+      return left > 0 ? left : 0;
+    },
+    /** A wrong password. Returns how long the next attempt must wait. */
+    fail() {
+      failures += 1;
+      if (failures <= free) return 0;
+      // Doubling from one second: 1, 2, 4, 8, 16, then held at the ceiling.
+      const wait = Math.min(ceiling, base * 2 ** (failures - free - 1));
+      until = now() + wait;
+      return wait;
+    },
+    /** The right password. The owner is back, so the slate is clean. */
+    pass() {
+      failures = 0;
+      until = 0;
+    },
+    get failures() {
+      return failures;
+    },
+  };
+}
+
+/**
  * Basic auth, username ignored: there is one owner, and asking them to invent
  * a username as well would only be a second thing to forget.
  */
