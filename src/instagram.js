@@ -42,11 +42,12 @@
 // Plain fetch, no SDK.
 
 import { createReadStream, existsSync } from 'node:fs';
-import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { readFile, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 
 import { config } from './config.js';
+import { writeSecret } from './secretfile.js';
 
 const VERSION = 'v27.0';
 const GRAPH = `https://graph.facebook.com/${VERSION}`;
@@ -286,9 +287,7 @@ export async function loadToken(path = TOKEN_PATH) {
 }
 
 export async function saveToken(token, path = TOKEN_PATH) {
-  const temp = `${path}.tmp`;
-  await writeFile(temp, JSON.stringify(token, null, 2), { encoding: 'utf8', mode: 0o600 });
-  await rename(temp, path);
+  await writeSecret(path, token);
 }
 
 export const forgetToken = (path = TOKEN_PATH) => rm(path, { force: true });

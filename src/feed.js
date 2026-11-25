@@ -70,6 +70,9 @@ export class Feed {
       store !== undefined ? store : config.storeEnabled ? openStore(config.storePath, { log }) : null;
 
     this.game = null;
+    // Set by retarget() when the panel changes the categories; null means use
+    // whatever the config started with.
+    this.gameNames = null;
     this.games = [];
     this.moments = [];
     this.streams = new Map();
@@ -107,12 +110,33 @@ export class Feed {
     return !this.twitch.configured;
   }
 
+  /** The categories to watch: what the panel chose, else what config started with. */
+  get wantedGames() {
+    return this.gameNames?.length ? this.gameNames : config.games;
+  }
+
+  /**
+   * Point the feed at different categories while it is running.
+   *
+   * init() resolves names to category ids once and then short-circuits on
+   * this.game, so the ids have to be cleared or the poller goes on asking
+   * about the old ones while the panel shows the new names.
+   */
+  async retarget(names = []) {
+    const wanted = [...names].filter(Boolean);
+    if (!wanted.length) return this.game;
+    if (wanted.join() === this.wantedGames.join()) return this.game;
+    this.gameNames = wanted;
+    this.game = null;
+    return this.init();
+  }
+
   async init() {
     if (this.game) return this.game;
     if (this.chatOnly) {
       // No category to resolve: the watch list IS the scope. Which game each
       // moment came from is read off the recording's chapters instead.
-      this.games = config.games.map((name) => ({ id: null, name }));
+      this.games = this.wantedGames.map((name) => ({ id: null, name }));
       this.game = { id: null, name: `${this.watchChannels.length} watched channels` };
       this.log(`no credentials — chat-only on ${this.watchChannels.length} channels`);
       return this.game;
@@ -122,7 +146,7 @@ export class Feed {
       this.games = [await this.twitch.gameById(config.gameId)];
     } else {
       this.games = [];
-      for (const name of config.games) {
+      for (const name of this.wantedGames) {
         try {
           this.games.push(await this.twitch.resolveGame(name));
         } catch (err) {
@@ -130,7 +154,7 @@ export class Feed {
           this.log(`could not find the "${name}" category: ${err.message}`);
         }
       }
-      if (!this.games.length) throw new Error(`none of ${config.games.join(', ')} is a Twitch category`);
+      if (!this.games.length) throw new Error(`none of ${this.wantedGames.join(', ')} is a Twitch category`);
     }
     this.game = {
       id: this.games.map((game) => game.id).join(','),

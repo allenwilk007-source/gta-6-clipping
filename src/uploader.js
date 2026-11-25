@@ -789,6 +789,10 @@ export class Uploader {
         title: this.previewTitle(platform, c, avoiding),
       })),
       queued: queue.length,
+      // Against the same key as everything else here: in dry-run the whole
+      // panel describes the dry-run lane, and a lifetime count that silently
+      // switched to the real one would be the only row that disagreed.
+      lifetime: this.store ? this.store.uploadTotals(key) : { done: 0, failed: 0, since: null },
       upcoming: this.upcoming(platform, queue),
       recent: recent.map((r) => ({ file: r.file, status: r.status, title: r.title, videoId: r.video_id, error: r.error, at: r.started_at })),
     };

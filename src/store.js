@@ -510,6 +510,29 @@ export class Store {
       .all(platform, new Date(since).toISOString());
   }
 
+  /**
+   * Everything ever sent to one platform, by outcome.
+   *
+   * The panel could say what happened today and what happened this week, and
+   * nothing further back: a run of four failures read the same whether it was
+   * the first four or the four-hundredth. This is the number an owner asks
+   * for first, and it is one grouped count.
+   */
+  uploadTotals(platform) {
+    const rows = this.db
+      .prepare(`select status, count(*) as n, min(started_at) as first from uploads
+                where platform = ? group by status`)
+      .all(platform);
+    const totals = { done: 0, failed: 0, since: null };
+    for (const row of rows) {
+      // 'dry-run' and 'skipped' never reached the platform, so neither is a post.
+      if (row.status === 'done') totals.done += row.n;
+      else if (row.status === 'failed' || row.status === 'refused') totals.failed += row.n;
+      if (row.first && (totals.since === null || row.first < totals.since)) totals.since = row.first;
+    }
+    return totals;
+  }
+
   uploadedFiles(platform) {
     return new Set(
       this.db.prepare("select file from uploads where platform = ? and status != 'retry'").all(platform).map((r) => r.file),

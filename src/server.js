@@ -9,7 +9,9 @@ import { clipQueueStatus, enqueueClip, getClipJob, publicJob } from './clipjobs.
 import { config, credentialsMissing, nothingToRun, root } from './config.js';
 import { Automation, SHORT_FILE, parseRange } from './automation.js';
 import { Feed } from './feed.js';
-import { authorized, isPublicPath } from './gate.js';
+import {
+  authorized, hostAllowed, isJsonBody, isLocalHost, isPublicPath, refuseOpenDashboard, sameOrigin,
+} from './gate.js';
 import { acquireLock, lockMessage } from './lock.js';
 import { PLATFORMS, Uploader } from './uploader.js';
 import * as instagram from './instagram.js';
@@ -156,6 +158,14 @@ function sendJson(res, status, payload) {
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
+    // A cross-site form can send three content types and this is not one of
+    // them, so requiring it forces any scripted caller into a preflight that
+    // never comes back. Checked before a byte is read.
+    if (!isJsonBody(req.headers['content-type'])) {
+      reject(new Error('body must be sent as application/json'));
+      req.resume();
+      return;
+    }
     let size = 0;
     const chunks = [];
     req.on('data', (chunk) => {
@@ -261,6 +271,25 @@ async function sendShort(req, res, name, download) {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${config.port}`);
+  const where = { host: config.host, port: config.port };
+
+  // A name we do not answer to means somebody pointed their own domain at
+  // this machine, which is how a page gets to read these responses rather
+  // than merely send them.
+  if (!hostAllowed(req.headers.host, where)) {
+    res.writeHead(421, { 'content-type': 'text/plain; charset=utf-8' })
+      .end('Not a name this dashboard answers to.\n');
+    return;
+  }
+
+  // Being on localhost is not the same as being asked by the operator. Any
+  // site they have open can post here, and the browser will attach whatever
+  // password they have already given.
+  if (!sameOrigin(req, where)) {
+    res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
+      .end('This has to be asked from the dashboard itself.\n');
+    return;
+  }
 
   // Before anything else. The page can change the streamer list, flip the
   // upload switches and spend the uploader’s quota, so once the address is
@@ -549,8 +578,18 @@ const server = createServer(async (req, res) => {
   await sendStatic(res, url.pathname);
 });
 
-server.listen(config.port, async () => {
+const refusal = refuseOpenDashboard({ host: config.host, password: config.dashboardPassword });
+if (refusal) {
+  console.error(`\n  ${refusal}`);
+  console.error('  Refusing to start an open dashboard on the network.\n');
+  process.exit(1);
+}
+
+server.listen(config.port, config.host, async () => {
   console.log(`\n  saturation feed  ->  http://localhost:${config.port}\n`);
+  if (!isLocalHost(config.host)) {
+    console.log(`  reachable from the network on ${config.host}, password required\n`);
+  }
 
   if (nothingToRun) {
     console.log('  Nothing to watch.');

@@ -79,8 +79,46 @@
           <span class="switch-label" id="auto-enabled-label">Off</span>
         </label>
       </div>
+      <!--
+        What and who, side by side and both editable. The category list used to
+        be a sentence printed from the environment: changing what this clipped
+        meant editing .env and restarting the server, which is not a setting so
+        much as a rebuild.
+      -->
+      <div class="picker">
+        <section class="pick">
+          <h3 class="pick-head">What to clip</h3>
+          <p class="pick-note">Twitch categories. Every live channel in these is watched.</p>
+          <div class="auto-channels" id="auto-games"></div>
+          <form class="auto-add" id="game-add">
+            <input
+              id="game-add-input"
+              type="text"
+              placeholder="Add a game: Fortnite"
+              autocomplete="off"
+            />
+            <button type="submit">Add game</button>
+          </form>
+        </section>
+        <section class="pick">
+          <h3 class="pick-head">Who to clip</h3>
+          <p class="pick-note">Channels automation cuts from, inside those categories.</p>
+          <div class="auto-channels" id="auto-channels"></div>
+          <form class="auto-add" id="auto-add">
+            <input
+              id="auto-add-input"
+              type="text"
+              placeholder="Add a channel: name or twitch.tv link"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit">Add channel</button>
+          </form>
+        </section>
+      </div>
+      <p class="auto-error" id="auto-error" hidden></p>
+
       <div class="auto-options">
-        <span class="auto-games" id="auto-games"></span>
         <label class="switch switch-small" title="Mix a track from the music folder quietly under each new short">
           <input type="checkbox" id="auto-music" />
           <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
@@ -95,63 +133,92 @@
           </select>
         </label>
       </div>
-      <div class="auto-channels" id="auto-channels"></div>
-      <form class="auto-add" id="auto-add">
-        <input
-          id="auto-add-input"
-          type="text"
-          placeholder="Add a channel: name or twitch.tv link"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <button type="submit">Add channel</button>
-      </form>
-      <p class="auto-error" id="auto-error" hidden></p>
       <p class="auto-status" id="auto-status"></p>
       <div class="uploads" id="uploads" hidden>
-        <strong class="uploads-title">Auto upload</strong>
-        <div class="uploads-row">
-          <span class="uploads-platform">YouTube</span>
-          <a class="uploads-connect" id="yt-connect" href="/auth/youtube">Connect</a>
-          <label class="uploads-mode"
-            >Mode
-            <select id="yt-mode">
-              <option value="off">Off</option>
-              <option value="dry-run">Dry run (log only)</option>
-              <option value="on">On: upload</option>
-            </select>
-          </label>
+        <div class="uploads-head">
+          <strong class="uploads-title">Auto upload</strong>
+          <p class="uploads-sub">
+            Where each finished short goes. One card per account: whether it is
+            connected, what it is allowed to do, and what it has done so far.
+          </p>
         </div>
-        <p class="uploads-status" id="yt-status"></p>
-        <ol class="uploads-list" id="yt-next"></ol>
-        <div class="uploads-row">
-          <span class="uploads-platform">TikTok</span>
-          <a class="uploads-connect" id="tt-connect" href="/auth/tiktok">Connect</a>
-          <label class="uploads-mode"
-            >Mode
-            <select id="tt-mode">
-              <option value="off">Off</option>
-              <option value="dry-run">Dry run (log only)</option>
-              <option value="on">On: send drafts</option>
-            </select>
-          </label>
+        <div class="up-grid">
+          <section class="up-card" id="up-youtube">
+            <div class="up-top">
+              <h3 class="up-name">YouTube</h3>
+              <span class="up-pill" id="yt-pill">
+                <span class="up-dot" aria-hidden="true"></span>
+                <span class="up-pill-text">Checking…</span>
+              </span>
+            </div>
+            <p class="up-account" id="yt-account" hidden></p>
+            <div class="up-controls">
+              <label class="up-mode">
+                <span>Mode</span>
+                <select id="yt-mode">
+                  <option value="off">Off</option>
+                  <option value="dry-run">Dry run (log only)</option>
+                  <option value="on">On: upload</option>
+                </select>
+              </label>
+              <a class="up-connect" id="yt-connect" href="/auth/youtube">Connect</a>
+            </div>
+            <dl class="up-stats" id="yt-stats"></dl>
+            <p class="uploads-status" id="yt-status"></p>
+            <ol class="uploads-list" id="yt-next"></ol>
+            <a class="up-more" href="/youtube.html">Open YouTube stats</a>
+          </section>
+          <section class="up-card" id="up-tiktok">
+            <div class="up-top">
+              <h3 class="up-name">TikTok</h3>
+              <span class="up-pill" id="tt-pill">
+                <span class="up-dot" aria-hidden="true"></span>
+                <span class="up-pill-text">Checking…</span>
+              </span>
+            </div>
+            <p class="up-account" id="tt-account" hidden></p>
+            <div class="up-controls">
+              <label class="up-mode">
+                <span>Mode</span>
+                <select id="tt-mode">
+                  <option value="off">Off</option>
+                  <option value="dry-run">Dry run (log only)</option>
+                  <option value="on">On: send drafts</option>
+                </select>
+              </label>
+              <a class="up-connect" id="tt-connect" href="/auth/tiktok">Connect</a>
+            </div>
+            <dl class="up-stats" id="tt-stats"></dl>
+            <p class="uploads-status" id="tt-status"></p>
+            <ol class="uploads-list" id="tt-next"></ol>
+            <a class="up-more" href="/tiktok.html">Open TikTok stats</a>
+          </section>
+          <section class="up-card" id="up-instagram">
+            <div class="up-top">
+              <h3 class="up-name">Instagram</h3>
+              <span class="up-pill" id="ig-pill">
+                <span class="up-dot" aria-hidden="true"></span>
+                <span class="up-pill-text">Checking…</span>
+              </span>
+            </div>
+            <p class="up-account" id="ig-account" hidden></p>
+            <div class="up-controls">
+              <label class="up-mode">
+                <span>Mode</span>
+                <select id="ig-mode">
+                  <option value="off">Off</option>
+                  <option value="dry-run">Dry run (log only)</option>
+                  <option value="on">On: upload</option>
+                </select>
+              </label>
+              <a class="up-connect" id="ig-connect" href="/auth/instagram">Connect</a>
+            </div>
+            <dl class="up-stats" id="ig-stats"></dl>
+            <p class="uploads-status" id="ig-status"></p>
+            <ol class="uploads-list" id="ig-next"></ol>
+            <a class="up-more" href="/instagram.html">Open Instagram stats</a>
+          </section>
         </div>
-        <p class="uploads-status" id="tt-status"></p>
-        <ol class="uploads-list" id="tt-next"></ol>
-        <div class="uploads-row">
-          <span class="uploads-platform">Instagram</span>
-          <a class="uploads-connect" id="ig-connect" href="/auth/instagram">Connect</a>
-          <label class="uploads-mode"
-            >Mode
-            <select id="ig-mode">
-              <option value="off">Off</option>
-              <option value="dry-run">Dry run (log only)</option>
-              <option value="on">On: upload</option>
-            </select>
-          </label>
-        </div>
-        <p class="uploads-status" id="ig-status"></p>
-        <ol class="uploads-list" id="ig-next"></ol>
       </div>
       <div class="shorts" id="shorts"></div>
     </section>
