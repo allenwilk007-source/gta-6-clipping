@@ -1342,6 +1342,43 @@ select {
   font: inherit;
 }
 
+/* The two numbers that decide what a day looks like: how many, how far apart.
+   Narrow boxes, because the widest sensible value is four digits of minutes,
+   and a full-width field would read as the card's main input rather than as a
+   limit on the switch above it. */
+.up-limits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.up-limits label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.up-limits input {
+  width: 7ch;
+  /* The same vertical padding as every other input on the page, so the two
+     boxes line up with the Mode select beside them and are a real target on
+     a phone rather than a 29px sliver. */
+  padding: 7px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+}
+
+.up-limits input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
 .up-connect {
   padding: 5px 11px;
   border: 1px solid var(--line-strong);

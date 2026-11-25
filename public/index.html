@@ -163,6 +163,16 @@
               </label>
               <a class="up-connect" id="yt-connect" href="/auth/youtube">Connect</a>
             </div>
+            <div class="up-limits">
+              <label>
+                <span>Per day</span>
+                <input id="yt-perday" type="number" inputmode="numeric" min="1" step="1" aria-describedby="yt-status" />
+              </label>
+              <label>
+                <span>Minutes apart</span>
+                <input id="yt-spacing" type="number" inputmode="numeric" min="1" max="1440" step="10" aria-describedby="yt-status" />
+              </label>
+            </div>
             <dl class="up-stats" id="yt-stats"></dl>
             <p class="uploads-status" id="yt-status"></p>
             <ol class="uploads-list" id="yt-next"></ol>
@@ -188,6 +198,16 @@
               </label>
               <a class="up-connect" id="tt-connect" href="/auth/tiktok">Connect</a>
             </div>
+            <div class="up-limits">
+              <label>
+                <span>Per day</span>
+                <input id="tt-perday" type="number" inputmode="numeric" min="1" step="1" aria-describedby="tt-status" />
+              </label>
+              <label>
+                <span>Minutes apart</span>
+                <input id="tt-spacing" type="number" inputmode="numeric" min="1" max="1440" step="10" aria-describedby="tt-status" />
+              </label>
+            </div>
             <dl class="up-stats" id="tt-stats"></dl>
             <p class="uploads-status" id="tt-status"></p>
             <ol class="uploads-list" id="tt-next"></ol>
@@ -212,6 +232,16 @@
                 </select>
               </label>
               <a class="up-connect" id="ig-connect" href="/auth/instagram">Connect</a>
+            </div>
+            <div class="up-limits">
+              <label>
+                <span>Per day</span>
+                <input id="ig-perday" type="number" inputmode="numeric" min="1" step="1" aria-describedby="ig-status" />
+              </label>
+              <label>
+                <span>Minutes apart</span>
+                <input id="ig-spacing" type="number" inputmode="numeric" min="1" max="1440" step="10" aria-describedby="ig-status" />
+              </label>
             </div>
             <dl class="up-stats" id="ig-stats"></dl>
             <p class="uploads-status" id="ig-status"></p>
