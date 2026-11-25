@@ -10,7 +10,8 @@ import { config, credentialsMissing, nothingToRun, root } from './config.js';
 import { Automation, SHORT_FILE, parseRange } from './automation.js';
 import { Feed } from './feed.js';
 import {
-  authorized, hostAllowed, isJsonBody, isLocalHost, isPublicPath, refuseOpenDashboard, sameOrigin,
+  authorized, createThrottle, hostAllowed, isJsonBody, isLocalHost, isPublicPath,
+  refuseOpenDashboard, sameOrigin,
 } from './gate.js';
 import { acquireLock, lockMessage } from './lock.js';
 import { PLATFORMS, Uploader } from './uploader.js';
@@ -143,6 +144,9 @@ const statsCache = new StatsCache();
 // and is refused.
 const signIns = new Map();
 
+/** How long a sign-in round trip may take before the state is no good. */
+const SIGN_IN_MINUTES = 10;
+
 function redirect(res, location) {
   res.writeHead(302, { location, 'cache-control': 'no-store' }).end();
 }
@@ -269,9 +273,13 @@ async function sendShort(req, res, name, download) {
   createReadStream(path).pipe(res);
 }
 
+// One count for the whole process. See createThrottle for why it is not
+// per-address: behind a tunnel every request arrives from the same place.
+const throttle = createThrottle();
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${config.port}`);
-  const where = { host: config.host, port: config.port };
+  const where = { host: config.host, port: config.port, extra: config.allowedHosts };
 
   // A name we do not answer to means somebody pointed their own domain at
   // this machine, which is how a page gets to read these responses rather
@@ -294,14 +302,31 @@ const server = createServer(async (req, res) => {
   // Before anything else. The page can change the streamer list, flip the
   // upload switches and spend the uploader’s quota, so once the address is
   // reachable the address alone cannot be what protects it.
-  if (!isPublicPath(url.pathname) && !authorized(req.headers.authorization, config.dashboardPassword)) {
-    res
-      .writeHead(401, {
-        'www-authenticate': 'Basic realm="clip dashboard", charset="UTF-8"',
-        'content-type': 'text/plain; charset=utf-8',
-      })
-      .end('Set DASHBOARD_PASSWORD in .env and sign in with it. Any username.\n');
-    return;
+  if (!isPublicPath(url.pathname)) {
+    const waiting = config.dashboardPassword ? throttle.waitFor() : 0;
+    if (waiting > 0) {
+      res
+        .writeHead(429, {
+          'retry-after': String(Math.ceil(waiting / 1000)),
+          'content-type': 'text/plain; charset=utf-8',
+        })
+        .end(`Too many wrong passwords. Try again in ${Math.ceil(waiting / 1000)}s.\n`);
+      return;
+    }
+    if (!authorized(req.headers.authorization, config.dashboardPassword)) {
+      // Only a guess counts. A first visit carries no header at all, and
+      // holding that against the owner would lock them out of their own
+      // dashboard for opening it.
+      if (config.dashboardPassword && req.headers.authorization) throttle.fail();
+      res
+        .writeHead(401, {
+          'www-authenticate': 'Basic realm="clip dashboard", charset="UTF-8"',
+          'content-type': 'text/plain; charset=utf-8',
+        })
+        .end('Set DASHBOARD_PASSWORD in .env and sign in with it. Any username.\n');
+      return;
+    }
+    if (config.dashboardPassword) throttle.pass();
   }
 
   if (url.pathname === '/api/feed') {
@@ -499,6 +524,11 @@ const server = createServer(async (req, res) => {
         return;
       }
       const state = randomBytes(16).toString('hex');
+      // Expiry was checked on the way back but never swept, so a sign-in the
+      // owner abandoned sat here until the process restarted. Cleared when a
+      // new one starts, which is the only moment the map ever grows.
+      const stale = Date.now() - SIGN_IN_MINUTES * 60_000;
+      for (const [key, value] of signIns) if (value.at < stale) signIns.delete(key);
       // The platform is remembered with the state, so a state issued for one
       // platform cannot be handed back on the other's callback.
       signIns.set(state, { platform, at: Date.now() });
@@ -509,7 +539,7 @@ const server = createServer(async (req, res) => {
     const state = url.searchParams.get('state') || '';
     const started = signIns.get(state);
     signIns.delete(state);
-    if (!started || started.platform !== platform || Date.now() - started.at > 10 * 60_000) {
+    if (!started || started.platform !== platform || Date.now() - started.at > SIGN_IN_MINUTES * 60_000) {
       redirect(res, `/?${platform}=expired#uploads`);
       return;
     }
@@ -578,7 +608,11 @@ const server = createServer(async (req, res) => {
   await sendStatic(res, url.pathname);
 });
 
-const refusal = refuseOpenDashboard({ host: config.host, password: config.dashboardPassword });
+const refusal = refuseOpenDashboard({
+  host: config.host,
+  password: config.dashboardPassword,
+  extra: config.allowedHosts,
+});
 if (refusal) {
   console.error(`\n  ${refusal}`);
   console.error('  Refusing to start an open dashboard on the network.\n');

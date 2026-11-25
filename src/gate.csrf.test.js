@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { hostAllowed, isJsonBody, sameOrigin } from './gate.js';
+import { hostAllowed, isJsonBody, refuseOpenDashboard, sameOrigin } from './gate.js';
 
 const LOCAL = { host: '127.0.0.1', port: 3000 };
 const post = (headers) => ({ method: 'POST', headers });
@@ -112,4 +112,35 @@ test('the three content types a cross-site form can send are refused', () => {
 test('a type that merely starts with the right word is refused', () => {
   assert.equal(isJsonBody('application/jsonp'), false);
   assert.equal(isJsonBody('text/json'), false);
+});
+
+// --- a tunnel the operator named -------------------------------------------
+
+test('a tunnel the operator named is answered, and nothing else is', () => {
+  // Without this, turning on the Host check would have broken every working
+  // remote setup: a tunnel arrives carrying its own name, which is the point
+  // of one. The operator says which, rather than the check being dropped.
+  const tunnel = { host: '127.0.0.1', extra: ['feed.example.ngrok-free.dev'] };
+  assert.equal(hostAllowed('feed.example.ngrok-free.dev', tunnel), true);
+  assert.equal(hostAllowed('feed.example.ngrok-free.dev:443', tunnel), true);
+  assert.equal(hostAllowed('localhost:3000', tunnel), true);
+  // A name they did not list is still a stranger.
+  assert.equal(hostAllowed('attacker.com', tunnel), false);
+  assert.equal(hostAllowed('evil.ngrok-free.dev', tunnel), false);
+});
+
+test('naming a tunnel without a password is refused', () => {
+  // The socket is on localhost, which looks safe and is not: something is
+  // carrying the internet to it.
+  const why = refuseOpenDashboard({
+    host: '127.0.0.1', password: '', extra: ['feed.example.ngrok-free.dev'],
+  });
+  assert.match(why, /DASHBOARD_HOSTS/);
+  assert.match(why, /DASHBOARD_PASSWORD/);
+
+  assert.equal(refuseOpenDashboard({
+    host: '127.0.0.1', password: 'hunter2', extra: ['feed.example.ngrok-free.dev'],
+  }), null);
+  // Naming none is the ordinary local case and needs nothing.
+  assert.equal(refuseOpenDashboard({ host: '127.0.0.1', password: '', extra: [] }), null);
 });
