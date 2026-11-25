@@ -60,12 +60,20 @@ Using this tool does not exempt anyone from the rules of the platforms it
 connects to. The operator must comply with TikTok's, YouTube's, Meta's and
 Twitch's terms, developer policies and community guidelines.
 
-The tool connects to those platforms **only through their official APIs**, with
-credentials the account owner has granted. It does not automate any platform's
-website or app, does not disguise automated access as human activity, does not
-rotate accounts or addresses, and does not attempt to work around any limit,
-block or review. That is a deliberate design boundary, not an oversight, and it
-is documented in `docs/detection-plan.md`.
+**Posting** happens **only through the platforms' official APIs**, with
+credentials the account owner has granted. Nothing is ever posted by driving a
+website or an app.
+
+**Reading Twitch** uses Twitch's API where credentials allow it, and otherwise
+reads pages and video that Twitch serves publicly: the channel page, to see
+whether someone is live, and `yt-dlp`, to fetch a VOD or a live stream to cut
+from. Those are not official APIs, and saying otherwise would be untrue.
+
+In no case does the tool disguise automated access as human activity, rotate
+accounts or addresses, use more than one account per platform, or attempt to
+work around any limit, block or review. It identifies itself by name when it
+asks Twitch for a page. That is a deliberate design boundary, not an oversight,
+and it is documented in `docs/detection-plan.md`.
 
 ## Acceptable use
 
