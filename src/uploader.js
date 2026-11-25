@@ -94,6 +94,73 @@ export const uploadConfig = (env = process.env) => ({
   },
 });
 
+/**
+ * The most each platform will actually take in a day, and why.
+ *
+ * These are not preferences. TikTok answers a sixth pending share with a 403,
+ * which spends the attempt and posts nothing; YouTube's 10,000 daily quota
+ * units at 1,600 an upload run out after six. So the dashboard may set
+ * anything up to these and nothing past them, and it says the reason rather
+ * than quietly clamping - a box that comes back holding a different number
+ * from the one typed into it reads as a bug, not as a rule.
+ */
+export const CEILINGS = {
+  youtube: { perDay: 6, why: 'YouTube allows 10,000 quota units a day and each upload costs 1,600' },
+  tiktok: { perDay: tiktok.PENDING_CAP, why: `TikTok allows ${tiktok.PENDING_CAP} pending shares in any 24 hours` },
+  instagram: { perDay: 50, why: 'Instagram allows 50 published posts in a moving 24 hours' },
+};
+
+// A full day apart is the widest gap that still means "a day"; a minute is the
+// narrowest that is still a gap.
+export const SPACING_RANGE = { min: 1, max: 1440 };
+
+/**
+ * How many the spacing alone allows in 24 hours.
+ *
+ * Raising the daily number on its own does nothing: five a day six hours
+ * apart is four a day. The panel used to say 5 while posting 4, with nothing
+ * on the page accounting for the fifth. This is what lets it say so instead.
+ */
+export const fitsInADay = (spacingMinutes) =>
+  Math.max(
+    1,
+    Math.floor(
+      1440 / Math.min(SPACING_RANGE.max, Math.max(SPACING_RANGE.min, Number(spacingMinutes) || SPACING_RANGE.min)),
+    ),
+  );
+
+/**
+ * One limit from the dashboard, checked before it can reach the scheduler.
+ *
+ * Returns the number to keep, or null to hand the setting back to .env - which
+ * is what an emptied box means, and the only way to undo a change here without
+ * having to remember what the file said.
+ *
+ * Every refusal is a sentence the panel can show as it stands, because that is
+ * where it ends up.
+ */
+export function checkLimit(platform, field, value) {
+  const ceiling = CEILINGS[platform];
+  if (!ceiling) throw new Error(`${platform} upload is not built yet`);
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n)) throw new Error('that needs to be a whole number');
+  if (field === 'perDay') {
+    // Zero a day and "off" would be two ways to say the same thing, and the
+    // one with a switch on the card is the one that says it clearly.
+    if (n < 1) throw new Error('at least one a day — use Off to stop uploading altogether');
+    if (n > ceiling.perDay) throw new Error(`${ceiling.perDay} a day is the most this can be: ${ceiling.why}`);
+    return n;
+  }
+  if (field === 'spacingMinutes') {
+    if (n < SPACING_RANGE.min || n > SPACING_RANGE.max) {
+      throw new Error(`the gap has to be between ${SPACING_RANGE.min} and ${SPACING_RANGE.max} minutes`);
+    }
+    return n;
+  }
+  throw new Error(`${field} is not a limit that can be set`);
+}
+
 export const MODES = ['off', 'dry-run', 'on'];
 
 // Both TikTok and Instagram count their caps over a moving 24 hours.
@@ -315,9 +382,20 @@ export class Uploader {
     this.settings = {};
     this.state = {};
     for (const platform of PLATFORMS) {
-      this.settings[platform] = { mode: 'off', blockedUntil: 0, blockedReason: null };
+      // perDay and spacingMinutes are null until somebody sets them here:
+      // null means "whatever .env says", so an untouched install behaves
+      // exactly as it did before this panel existed.
+      this.settings[platform] = { mode: 'off', blockedUntil: 0, blockedReason: null, perDay: null, spacingMinutes: null };
       this.state[platform] = { blockedUntil: 0, blockedReason: null, lastError: null, connected: false };
     }
+    // What .env asked for, kept aside so clearing a limit set here can put the
+    // file's number back without re-reading it.
+    this.envLimits = Object.fromEntries(
+      PLATFORMS.map((platform) => [
+        platform,
+        { perDay: this.cfg[platform].perDay, spacingMinutes: this.cfg[platform].spacingMinutes },
+      ]),
+    );
     this.busy = false;
     this.timer = null;
     // candidates() opens a .json for every short in the queue, and the queue
@@ -448,10 +526,23 @@ export class Uploader {
           this.state[platform].blockedReason = saved[platform].blockedReason || null;
           this.log(`upload: ${platform} is still waiting — ${saved[platform].blockedReason || 'blocked'}`);
         }
+        for (const field of ['perDay', 'spacingMinutes']) {
+          const kept = saved?.[platform]?.[field];
+          if (kept === undefined || kept === null) continue;
+          try {
+            this.settings[platform][field] = checkLimit(platform, field, kept);
+          } catch (err) {
+            // A file edited by hand, or written when the ceiling was different.
+            // Ignore that number and say so: refusing to start over a setting
+            // that has a perfectly good default would be worse.
+            this.log(`upload: ignoring the saved ${platform} ${field} — ${err.message}`);
+          }
+        }
       }
     } catch {
       /* first run: off */
     }
+    this.applyLimits();
     for (const platform of PLATFORMS) {
       this.state[platform].connected = await this.isConnected(platform);
     }
@@ -479,6 +570,45 @@ export class Uploader {
     this.settings[platform].mode = mode;
     await this.saveSettings();
     this.log(`upload: ${adapter.label} is now ${mode}`);
+  }
+
+  /**
+   * The chosen limits, onto this.cfg, which is what everything else reads.
+   *
+   * One place, called after a load and after every change, so the scheduler,
+   * the projection and the panel cannot end up disagreeing about what today
+   * allows.
+   */
+  applyLimits() {
+    for (const platform of PLATFORMS) {
+      const base = this.envLimits[platform];
+      this.cfg[platform].perDay = this.settings[platform].perDay ?? base.perDay;
+      this.cfg[platform].spacingMinutes = this.settings[platform].spacingMinutes ?? base.spacingMinutes;
+    }
+  }
+
+  /**
+   * How many a day, and how far apart, from the dashboard.
+   *
+   * Both are checked before either is kept, so a refused gap cannot leave the
+   * daily number changed and the page showing a pair that was never set
+   * together. Takes effect on the next tick - a minute at most - rather than
+   * on a restart, which is the whole point of it being on the page.
+   */
+  async setLimits(platform, { perDay, spacingMinutes } = {}) {
+    const adapter = this.adapter(platform);
+    const next = {};
+    if (perDay !== undefined) next.perDay = checkLimit(platform, 'perDay', perDay);
+    if (spacingMinutes !== undefined) next.spacingMinutes = checkLimit(platform, 'spacingMinutes', spacingMinutes);
+    Object.assign(this.settings[platform], next);
+    this.applyLimits();
+    await this.saveSettings();
+    const cfg = this.cfg[platform];
+    const fits = fitsInADay(cfg.spacingMinutes);
+    this.log(
+      `upload: ${adapter.label} is now up to ${cfg.perDay} a day, ${cfg.spacingMinutes} minutes apart` +
+        (fits < cfg.perDay ? ` — that gap only fits ${fits}` : ''),
+    );
   }
 
   /**
@@ -780,6 +910,17 @@ export class Uploader {
       spacingMinutes: this.cfg[platform].spacingMinutes,
       today: plan?.today ?? 0,
       perDay: this.cfg[platform].perDay,
+      // What the platform itself allows, so the panel can offer the whole
+      // range it has and name the reason it stops there.
+      maxPerDay: CEILINGS[platform].perDay,
+      capWhy: CEILINGS[platform].why,
+      spacingRange: SPACING_RANGE,
+      // What the gap allows on its own. Raising one without the other is the
+      // easy mistake here, and this is how the page catches it.
+      fitsPerDay: fitsInADay(this.cfg[platform].spacingMinutes),
+      // Whether these came from this panel or from the file, because "as set
+      // in .env" and "as you set it" answer different questions.
+      limitsSetHere: this.settings[platform].perDay !== null || this.settings[platform].spacingMinutes !== null,
       nextAt: plan && mode !== 'off' ? new Date(plan.nextAt).toISOString() : null,
       waitingFor: plan?.why || null,
       lastError: this.state[platform].lastError,

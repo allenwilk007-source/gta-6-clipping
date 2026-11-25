@@ -431,6 +431,12 @@ const server = createServer(async (req, res) => {
   // GET  /api/uploads                          -> each platform's upload state
   // POST /api/uploads {platform, mode}          -> off | dry-run | on
   // POST /api/uploads {platform, disconnect}    -> forget the sign-in
+  // POST /api/uploads {platform, perDay}        -> how many a day, up to the
+  //                                                platform's own ceiling
+  // POST /api/uploads {platform, spacingMinutes} -> how far apart they go
+  //
+  // An empty perDay or spacingMinutes hands that setting back to .env, so a
+  // number tried here can be undone without knowing what the file holds.
   if (url.pathname === '/api/uploads') {
     if (req.method === 'POST') {
       try {
@@ -443,6 +449,8 @@ const server = createServer(async (req, res) => {
           await uploader.setMode(platform, 'off');
           await SIGN_IN[platform].api.forgetToken();
           uploader.state[platform].connected = false;
+        } else if (body.perDay !== undefined || body.spacingMinutes !== undefined) {
+          await uploader.setLimits(platform, { perDay: body.perDay, spacingMinutes: body.spacingMinutes });
         } else {
           await uploader.setMode(platform, body.mode);
         }

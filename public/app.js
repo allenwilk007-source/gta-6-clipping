@@ -943,6 +943,12 @@ auto.form.addEventListener('submit', async (event) => {
 
 // --- auto upload ---------------------------------------------------------------
 
+// What the server last refused for each card, kept until that card's next
+// change is accepted. The panel re-renders from the server's view every five
+// seconds, and the view knows nothing about a number it rejected - so without
+// this the reason appeared and then vanished on its own. See renderPlatform.
+const REFUSED = {};
+
 const up = {
   box: document.getElementById('uploads'),
   youtube: platformEls('yt', 'youtube'),
@@ -959,6 +965,8 @@ function platformEls(prefix, name) {
     account: document.getElementById(`${prefix}-account`),
     connect: document.getElementById(`${prefix}-connect`),
     mode: document.getElementById(`${prefix}-mode`),
+    perDay: document.getElementById(`${prefix}-perday`),
+    spacing: document.getElementById(`${prefix}-spacing`),
     stats: document.getElementById(`${prefix}-stats`),
     status: document.getElementById(`${prefix}-status`),
     next: document.getElementById(`${prefix}-next`),
@@ -1020,6 +1028,23 @@ function renderPlatform(name, state) {
   if (document.activeElement !== els.mode) els.mode.value = state.mode;
   els.mode.querySelector('[value="on"]').disabled = !state.connected;
 
+  // Never while a box is being typed in. The panel polls every few seconds,
+  // and a poll landing mid-edit would swap the half-typed number for the
+  // stored one under the cursor.
+  if (document.activeElement !== els.perDay) els.perDay.value = state.perDay ?? '';
+  if (document.activeElement !== els.spacing) els.spacing.value = state.spacingMinutes ?? '';
+  if (state.maxPerDay) {
+    // The server refuses anything past this anyway; saying so on the control
+    // means not having to be refused to find out.
+    els.perDay.max = state.maxPerDay;
+    els.perDay.title = `Up to ${state.maxPerDay} a day — ${state.capWhy}. Empty the box to go back to what .env says.`;
+  }
+  if (state.spacingRange) {
+    els.spacing.min = state.spacingRange.min;
+    els.spacing.max = state.spacingRange.max;
+  }
+  els.spacing.title = 'The gap between uploads. Empty the box to go back to what .env says.';
+
   // The select above already says what the mode is, so the grid holds only
   // numbers: what today allows, when the next one goes, and the record. The
   // lifetime count is the one figure that separates a first bad day from a
@@ -1045,9 +1070,20 @@ function renderPlatform(name, state) {
       notes.push('Google keeps uploads private until its audit passes.');
     }
   }
+  // A setting that contradicts itself, not a status, so it is said whether or
+  // not uploading is on: five a day six hours apart is four a day, and the
+  // panel used to show 5 with nothing accounting for the fifth.
+  if (state.fitsPerDay < state.perDay) {
+    notes.push(`${state.spacingMinutes} minutes apart only fits ${state.fitsPerDay} a day, so ${state.fitsPerDay} is the real cap.`);
+  }
   if (state.lastError) notes.push(`Last error: ${state.lastError}`);
+  // A refusal has to outlive the next poll. Without it the box went quietly
+  // back to the stored number with nothing left on the page saying why, which
+  // reads as the change being taken and then undone.
+  const refused = REFUSED[name];
+  if (refused) notes.push(refused);
   els.status.textContent = notes.join(' ');
-  els.status.classList.toggle('is-error', Boolean(state.lastError));
+  els.status.classList.toggle('is-error', Boolean(state.lastError || refused));
 
   const posted = state.recent.map((r) => `${r.status === 'dry-run' ? 'would post' : r.status}: ${r.title || r.file}`);
   const queued = state.next.map((c) => `next (${c.score}): ${c.title}`);
@@ -1076,10 +1112,14 @@ async function pollUploads(change) {
     if (!res.ok) {
       // Shown against the switch that was just moved, not the other one's.
       const els = up[change?.platform] || up.youtube;
-      els.status.textContent = body.message || `upload settings returned ${res.status}`;
+      const message = body.message || `upload settings returned ${res.status}`;
+      if (change?.platform) REFUSED[change.platform] = message;
+      els.status.textContent = message;
       els.status.classList.add('is-error');
       return;
     }
+    // Accepted, so whatever was refused before it no longer needs saying.
+    if (change?.platform) delete REFUSED[change.platform];
     renderUploads(body);
   } catch {
     /* the server is restarting; the next poll catches up */
@@ -1088,6 +1128,13 @@ async function pollUploads(change) {
 
 for (const platform of UPLOAD_PLATFORMS) {
   up[platform].mode.addEventListener('change', () => pollUploads({ platform, mode: up[platform].mode.value }));
+  // 'change', not 'input': one request when the number is settled, rather than
+  // one per keystroke - each of which would also be a write to disk, and would
+  // see 1 on the way to typing 15.
+  up[platform].perDay.addEventListener('change', () => pollUploads({ platform, perDay: up[platform].perDay.value }));
+  up[platform].spacing.addEventListener('change', () =>
+    pollUploads({ platform, spacingMinutes: up[platform].spacing.value }),
+  );
 }
 
 // --- the accounts themselves ---------------------------------------------
