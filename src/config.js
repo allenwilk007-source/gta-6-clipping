@@ -116,8 +116,15 @@ export const GAME_HASHTAGS = {
 export const config = {
   root,
   port: num(process.env.PORT, 3000),
+  // Which addresses to answer on. Node's default is every interface, which
+  // put an unauthenticated control panel for somebody's YouTube and TikTok
+  // accounts in front of everyone on their home network - a laptop, a phone,
+  // a guest, anything on the same Wi-Fi. The address was never the privacy it
+  // was taken for. Localhost unless the owner says otherwise, and saying
+  // otherwise requires a password (see server.js).
+  host: process.env.HOST?.trim() || '127.0.0.1',
   // Empty means the dashboard is open, which is right on localhost and
-  // wrong the moment it is behind a tunnel. See gate.js.
+  // wrong the moment it is reachable from anywhere else. See gate.js.
   dashboardPassword: process.env.DASHBOARD_PASSWORD || '',
   clientId: process.env.TWITCH_CLIENT_ID || '',
   clientSecret: process.env.TWITCH_CLIENT_SECRET || '',

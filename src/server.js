@@ -9,7 +9,7 @@ import { clipQueueStatus, enqueueClip, getClipJob, publicJob } from './clipjobs.
 import { config, credentialsMissing, nothingToRun, root } from './config.js';
 import { Automation, SHORT_FILE, parseRange } from './automation.js';
 import { Feed } from './feed.js';
-import { authorized, isPublicPath } from './gate.js';
+import { authorized, isLocalHost, isPublicPath, refuseOpenDashboard } from './gate.js';
 import { acquireLock, lockMessage } from './lock.js';
 import { PLATFORMS, Uploader } from './uploader.js';
 import * as instagram from './instagram.js';
@@ -549,8 +549,18 @@ const server = createServer(async (req, res) => {
   await sendStatic(res, url.pathname);
 });
 
-server.listen(config.port, async () => {
+const refusal = refuseOpenDashboard({ host: config.host, password: config.dashboardPassword });
+if (refusal) {
+  console.error(`\n  ${refusal}`);
+  console.error('  Refusing to start an open dashboard on the network.\n');
+  process.exit(1);
+}
+
+server.listen(config.port, config.host, async () => {
   console.log(`\n  saturation feed  ->  http://localhost:${config.port}\n`);
+  if (!isLocalHost(config.host)) {
+    console.log(`  reachable from the network on ${config.host}, password required\n`);
+  }
 
   if (nothingToRun) {
     console.log('  Nothing to watch.');

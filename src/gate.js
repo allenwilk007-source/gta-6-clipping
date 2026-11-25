@@ -22,6 +22,26 @@ export const isPublicPath = (pathname) => OPEN.has(pathname) || SIGNATURE.test(p
 const digest = (value) => createHash('sha256').update(String(value), 'utf8').digest();
 const sameSecret = (a, b) => timingSafeEqual(digest(a), digest(b));
 
+/** Addresses that only this machine can reach. */
+const LOCAL = new Set(['127.0.0.1', 'localhost', '::1', '']);
+
+export const isLocalHost = (host) => LOCAL.has(String(host ?? '').trim());
+
+/**
+ * Why this configuration must not start, or null if it may.
+ *
+ * Binding to the network without a password does not merely show strangers a
+ * page: the dashboard flips the upload switches, edits the channel list and
+ * spends the quota on accounts the owner connected. A warning would scroll
+ * away and leave the port open, so this refuses instead.
+ */
+export function refuseOpenDashboard({ host, password }) {
+  if (isLocalHost(host)) return null;
+  if (password) return null;
+  return `HOST is set to ${host}, which lets other machines reach this dashboard. ` +
+    'Set DASHBOARD_PASSWORD in .env as well, or leave HOST unset to stay on this machine only.';
+}
+
 /**
  * Basic auth, username ignored: there is one owner, and asking them to invent
  * a username as well would only be a second thing to forget.
