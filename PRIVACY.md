@@ -56,6 +56,29 @@ no crash reporting, no advertising, and no third-party SDK of any kind.
 Data is not sold, rented, shared or disclosed to anyone, because there is
 nobody to disclose it to.
 
+### The website
+
+All of the above is about the software. The page you may have downloaded it
+from is a separate thing, hosted on GitHub Pages, and it deserves saying
+plainly rather than letting the paragraph above stand in for both.
+
+The page carries no analytics script, no tag manager, no advertising pixel and
+no cookie. Nothing on it reports your visit to anybody. The playable dashboard
+at `/demo/` is the same: it is the real dashboard running against invented data
+held in your own browser, it makes no request to any server, and there is no
+account behind it.
+
+What does happen is that GitHub serves the page, and counts what its own
+servers do, as any host does. From that the author can see aggregate figures:
+how many times a release file was downloaded, and how many people opened the
+repository page on github.com. Those are counts and nothing else — no identity,
+no path through the site, nothing tied to a person. What GitHub itself keeps is
+covered by GitHub's privacy policy, not this one.
+
+There is no figure for visits to the website, because getting one would mean
+putting a reporting script on the page. If that ever changes, this file changes
+first.
+
 The only network connections it makes are directly to the platforms named
 above and to the APIs it has been authorised to use. In full, that is:
 `twitch.tv` and its media hosts (`*.ttvnw.net`), `googleapis.com` and
