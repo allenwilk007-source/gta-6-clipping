@@ -220,7 +220,20 @@ export async function candidates({ store, dir, platform, games = config.games, k
     }
     // The game this short recorded about itself must be one this channel is for.
     if (!saved.game || !wanted.has(String(saved.game).toLowerCase())) continue;
-    out.push({ file, video, saved, score: row.score, finishedAt: row.finishedAt, momentId: row.momentId });
+    // What the store knows about the moment this short came from, in the shape
+    // recopy() reads. Without it the post copy is rebuilt as if the moment had
+    // come from chat with no title, and the only honest thing left to say is
+    // that chat spiked - which was true of every short this tool ever posted.
+    const record = {
+      id: row.momentId,
+      source: row.momentSource || null,
+      title: row.momentTitle || null,
+      caption: row.caption,
+      broadcaster: row.broadcaster,
+      vodId: row.vodId,
+      gameId: row.gameId,
+    };
+    out.push({ file, video, saved, record, score: row.score, finishedAt: row.finishedAt, momentId: row.momentId });
   }
   return out.sort((a, b) => b.score - a.score || String(b.finishedAt).localeCompare(String(a.finishedAt)));
 }
@@ -272,7 +285,7 @@ export function postWithoutRepeating(adapter, candidate, avoid = [], tries = 4) 
 
 export function youtubePost(candidate, { avoid = [] } = {}) {
   // `avoid`: titles already posted, so a day is not one sentence five times.
-  const parts = recopy({ file: candidate.file, saved: candidate.saved, avoid });
+  const parts = recopy({ file: candidate.file, saved: candidate.saved, record: candidate.record || null, avoid });
   const [title, ...rest] = parts.platforms.youtube.split('\n');
   const description = rest.join('\n').trim();
   assertGameMatches(`${title}\n${description}`, candidate.saved.game);
@@ -290,7 +303,7 @@ export function youtubePost(candidate, { avoid = [] } = {}) {
  * carries the credit, so the link is appended here.
  */
 export function tiktokPost(candidate, { avoid = [] } = {}) {
-  const parts = recopy({ file: candidate.file, saved: candidate.saved, avoid });
+  const parts = recopy({ file: candidate.file, saved: candidate.saved, record: candidate.record || null, avoid });
   const title = parts.platforms.tiktok.trim();
   assertGameMatches(title, candidate.saved.game);
   const caption = parts.link ? `${title}\n${parts.linkLabel}: ${parts.link}` : title;
@@ -347,7 +360,7 @@ export function projectSlots({ taken = [], count, now, perDay, spacingMinutes, r
  * being handed to the owner to paste.
  */
 export function instagramPost(candidate, { avoid = [] } = {}) {
-  const parts = recopy({ file: candidate.file, saved: candidate.saved, avoid });
+  const parts = recopy({ file: candidate.file, saved: candidate.saved, record: candidate.record || null, avoid });
   const body = parts.platforms.instagram.trim();
   assertGameMatches(body, candidate.saved.game);
   const full = parts.link ? `${body}\n${parts.linkLabel}: ${parts.link}` : body;

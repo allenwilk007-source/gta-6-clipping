@@ -482,8 +482,13 @@ const ABOUT = {
   shock: ['{name} did not see this coming in {game}', "Nobody was ready for this on {name}'s {game} stream", "Chat can't believe what happened to {name} in {game}"],
   hype: ['Chat goes wild for {name} in {game}', '{name} gets chat hyped in {game}', '{name} sets chat off in {game}'],
   tension: ['Things get tense for {name} in {game}', 'Chat holds its breath with {name} in {game}'],
-  // No clear reaction: what is known is that chat spiked here, so say that.
-  neutral: ["The {game} moment {name}'s chat jumped on", "{name}'s chat spiked at this {game} moment", "What set off {name}'s chat in {game}"],
+  // No clear reaction, and no title from anyone who watched it: nothing in
+  // this program knows what happens in the clip. A question is the honest
+  // shape for that, because it asks rather than claims — and it is the better
+  // hook anyway. The old wording told a viewer only that some chat somewhere
+  // moved, which is true of every short this tool has ever made and is
+  // therefore worth no part of a title.
+  neutral: ['What is {name} doing in {game}?!', '{name} did WHAT in {game}?!', "Wait — what just happened on {name}'s {game} stream?!"],
 };
 
 const gameInfo = (game) => GAME_TAGS[String(game || '').toLowerCase()] || null;
