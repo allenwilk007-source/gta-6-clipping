@@ -205,12 +205,19 @@ export class Store {
            and created_at >= ?
          limit 1
       `),
+      // The moment is joined in for `source` and `title`: the title a viewer
+      // typed when they clipped it is the only description of what actually
+      // happens in a short, and post copy built without it can say nothing
+      // better than "chat spiked here". Left join, because a moment can be
+      // pruned out from under a short that outlives it.
       listAutoclips: this.db.prepare(`
-        select moment_id as momentId, vod_id as vodId, offset_seconds as offsetSeconds,
-               score, funny, redone, weak, review, opportunity,
-               broadcaster, caption, status, path, error,
-               created_at as createdAt, finished_at as finishedAt
-          from autoclips order by created_at desc limit ?
+        select a.moment_id as momentId, a.vod_id as vodId, a.offset_seconds as offsetSeconds,
+               a.score, a.funny, a.redone, a.weak, a.review, a.opportunity,
+               a.broadcaster, a.caption, a.status, a.path, a.error,
+               a.created_at as createdAt, a.finished_at as finishedAt,
+               m.source as momentSource, m.title as momentTitle, m.game_id as gameId
+          from autoclips a left join moments m on m.id = a.moment_id
+         order by a.created_at desc limit ?
       `),
       counts: this.db.prepare(`
         select

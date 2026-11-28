@@ -185,3 +185,22 @@ test('what has already gone out today moves the first slot', async () => {
   // 3 hours after that one, not now.
   assert.equal(view.youtube.upcoming[0].at, new Date(T0 + 150 * MIN).toISOString());
 });
+
+test('a sign-in that lapsed leaves the page with no time, rather than throwing', async () => {
+  // Found the hard way: YouTube's sign-in had expired, the switch was on, and
+  // the next read of the upload state killed the server — then the supervisor
+  // restarted it into the same state, so it would have kept dying. A block
+  // with no end date has no time to show, and Infinity has no ISO form.
+  const { dir, store } = await setup([{ name: 'best', score: 92 }]);
+  const u = uploader({ store, dir });
+  u.settings.youtube.mode = 'on';
+  const err = new Error('sign-in: 400 Token has been expired or revoked.');
+  err.kind = 'auth';
+  u.stopFor('youtube', err);
+
+  assert.equal(u.schedule('youtube').nextAt, Infinity, 'the block itself has no end');
+  const view = await u.view();
+  assert.equal(view.youtube.nextAt, null, 'no time to show, and none invented');
+  assert.match(view.youtube.waitingFor, /connect/i, 'the page says what to do instead');
+  assert.equal(view.youtube.connected, false);
+});
