@@ -934,7 +934,14 @@ export class Uploader {
       // Whether these came from this panel or from the file, because "as set
       // in .env" and "as you set it" answer different questions.
       limitsSetHere: this.settings[platform].perDay !== null || this.settings[platform].spacingMinutes !== null,
-      nextAt: plan && mode !== 'off' ? new Date(plan.nextAt).toISOString() : null,
+      // A lapsed sign-in and a refused account both block with no end: the
+      // schedule's nextAt is Infinity, and `new Date(Infinity)` has no ISO
+      // form to give — it throws. Nothing caught it, so the first read of the
+      // upload state after an expired YouTube sign-in met a switch left on
+      // took the whole server down, and the supervisor restarted it into the
+      // same state. There is no time to name in that case; `waitingFor`
+      // already carries the reason, which is the part worth saying anyway.
+      nextAt: plan && mode !== 'off' && Number.isFinite(plan.nextAt) ? new Date(plan.nextAt).toISOString() : null,
       waitingFor: plan?.why || null,
       lastError: this.state[platform].lastError,
       next: next.map((c) => ({
